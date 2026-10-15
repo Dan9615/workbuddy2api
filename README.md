@@ -24,8 +24,8 @@
 Clone this repository to your server or local machine:
 
 ```bash
-git clone https://github.com/Dan9615/workbuddy-openclaw.git
-cd workbuddy-openclaw
+git clone https://github.com/Dan9615/workbuddy2api.git
+cd workbuddy2api
 ```
 
 Copy the example configuration:
