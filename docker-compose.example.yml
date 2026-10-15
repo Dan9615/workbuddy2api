@@ -1,0 +1,31 @@
+services:
+  # Upstream Go API gateway (multi-account pool, proxy to Tencent WorkBuddy)
+  wb2api:
+    image: workbuddy2api-wb2api
+    container_name: workbuddy2api
+    restart: unless-stopped
+    ports:
+      - "7863:7863"
+    environment:
+      - TZ=Asia/Hong_Kong
+    volumes:
+      - ./auths:/app/auths
+      - ./data:/app/data
+      - ./config.json:/app/config.json:ro
+
+  # Optional: Web UI Manager & Admin Dashboard
+  workbuddy-manager:
+    image: ghcr.io/ithtelab/workbuddy-manager:latest
+    container_name: workbuddy-manager
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7864:7864"
+    environment:
+      TZ: Asia/Hong_Kong
+      WB2API_BASE: http://wb2api:7863
+      WB_TRUST_PROXY: "1"
+    volumes:
+      - ./manager-data:/app/data
+      - .:/opt/workbuddy2api
+    depends_on:
+      - wb2api
