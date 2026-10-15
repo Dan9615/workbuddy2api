@@ -1,48 +1,61 @@
-# WorkBuddy OpenClaw Bridge (WorkBuddy 接入 OpenClaw 完整套件)
+# WorkBuddy OpenClaw Bridge
 
-一鍵將騰訊 **CodeBuddy / WorkBuddy** 的免費用量（特別是 **DeepSeek V4.1 Flash (1M 上下文)**）轉化為 OpenAI 兼容協議，並無縫串接至 **OpenClaw** 作為日常模型與 Sub-agent 執行核心。
-
----
-
-## 🌟 核心亮點
-
-- **🧠 1,000,000 Tokens (1M) 超大上下文**：單次對話或工程分析可輕鬆消化數十個源碼檔案。
-- **🛠️ 原生 Tool Calling 支持**：完美適配 OpenClaw 執行 Shell 指令、檔案讀寫、修復代碼等 Agentic 任務。
-- **💸 0 Credit 免費用量**：對接 WorkBuddy 國際版端點，享受免費超長思考鏈（Reasoning）模型。
-- **🚀 零侵入架構**：以 Docker 容器自動代理與管理 Token 保活，配合 CLIProxyAPI 轉發，無需修改宿主既有配置。
+> Seamlessly bridge Tencent **WorkBuddy / CodeBuddy** free tier quotas—especially **DeepSeek V4.1 Flash (1M Context Window)**—into standard OpenAI-compatible endpoints, and integrate directly with **OpenClaw** as your primary engine and sub-agent delegation backbone.
 
 ---
 
-## 🏗️ 架構全景圖
+## 🌟 Key Highlights
+
+- **🧠 1,000,000 Tokens (1M) Context Window**: Effortlessly ingest dozens of codebase files, extensive logs, or complete RFC specs in a single prompt.
+- **🛠️ Native Tool Calling (Function Calling)**: 100% compliant with standard OpenAI `tool_calls` schemas. Fully capable of executing terminal commands, file edits, git workflows, and autonomous sub-agent routines.
+- **💸 0 Credit Cost (Free Tier)**: Connects to WorkBuddy Global (`workbuddy.ai`) endpoints where DeepSeek V4.1 Flash is marked as `credits: x0.00` with zero billing consumption.
+- **⚡️ Built-in Reasoning Chain**: Returns structured `reasoning_content` with deep multi-step thinking traces.
+- **🚀 Non-Invasive Architecture**: Runs as lightweight Docker containers with multi-account connection pooling, token keepalives, and automatic hot-reloading.
+
+---
+
+## 🏗️ Architecture
 
 ```text
-OpenClaw Gateway
-       │ (OpenAI-compatible /v1)
-       ▼
-CLIProxyAPI (Port :8317)
-       │ (Reverse Proxy & Model Router)
-       ▼
-workbuddy2api (Docker Container, Port :7863)
-       │ (Multi-account Pool & Token Keepalive)
-       ▼
-Tencent WorkBuddy Global API
-       │
-       ▼
-DeepSeek V4.1 Flash (1M Context & Native Tool Calling)
+┌────────────────────────────────────────────────────────┐
+│                   OpenClaw Gateway                     │
+│  (Orchestrator, Hacker Agent, Sub-Agents, Workflows)   │
+└──────────────────────────┬─────────────────────────────┘
+                           │ (OpenAI-compatible /v1)
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│             CLIProxyAPI Router (Port :8317)            │
+│         (Model Mapping & Protocol Normalization)       │
+└──────────────────────────┬─────────────────────────────┘
+                           │ (Forward to upstream gateway)
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│          workbuddy2api Docker (Port :7863)             │
+│   (Multi-Account Pool, Token Keepalive & Hot-Reload)   │
+└──────────────────────────┬─────────────────────────────┘
+                           │ (Reverse-engineered HTTPS API)
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│              Tencent WorkBuddy Global API              │
+│       https://www.workbuddy.ai (credits: x0.00)        │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+         DeepSeek V4.1 Flash (1M Context + Tools)
 ```
 
 ---
 
-## 🚀 快速上手
+## 🚀 Quick Start
 
-### 1. 啟動 workbuddy2api 網關
+### 1. Launch Upstream Gateway (`workbuddy2api`)
 
-創建 `docker-compose.yml`：
+Create a `docker-compose.yml` file:
 
 ```yaml
 services:
   wb2api:
-    image: ghcr.io/ithtelab/workbuddy-manager:latest
+    image: workbuddy2api-wb2api
     container_name: workbuddy2api
     restart: unless-stopped
     ports:
@@ -53,24 +66,53 @@ services:
       - ./auths:/app/auths
       - ./data:/app/data
       - ./config.json:/app/config.json:ro
+
+  # Optional Web UI Manager & Dashboard
+  workbuddy-manager:
+    image: ghcr.io/ithtelab/workbuddy-manager:latest
+    container_name: workbuddy-manager
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7864:7864"
+    environment:
+      TZ: Asia/Hong_Kong
+      WB2API_BASE: http://wb2api:7863
+      WB_TRUST_PROXY: "1"
+    volumes:
+      - ./manager-data:/app/data
+      - .:/opt/workbuddy2api
+    depends_on:
+      - wb2api
 ```
 
-啟動容器：
+Start the service:
 ```bash
 docker compose up -d
 ```
 
-### 2. 登入 WorkBuddy 帳號 (OAuth)
+---
 
-在瀏覽器打開以下授權端點，登入 Google 帳號授權：
-```bash
-https://www.workbuddy.ai/login?platform=CLI&state=<STATE_UUID>
-```
-將取得到的 Access Token 與 Refresh Token 儲存至 `./auths/workbuddy-<uid>.json`，上游網關將在 5 秒內熱加載該帳號。
+### 2. Authenticate WorkBuddy Account (OAuth)
 
-### 3. 配置 OpenClaw 模型
+1. Generate an authorization URL:
+   ```bash
+   curl -s -X POST "https://www.workbuddy.ai/v2/plugin/auth/state?platform=CLI"
+   ```
+2. Open the returned `authUrl` in your browser and complete Google OAuth login:
+   ```text
+   https://www.workbuddy.ai/login?platform=CLI&state=<STATE_UUID>
+   ```
+3. Poll for the access token:
+   ```bash
+   curl -s "https://www.workbuddy.ai/v2/plugin/auth/token?state=<STATE_UUID>"
+   ```
+4. Save the resulting credentials into `./auths/workbuddy-<uid>.json`. The upstream pool will hot-reload the account within 5 seconds without restarting the container.
 
-在 `~/.openclaw/openclaw.json` 中的 `models.providers.cliproxy.models` 陣列加入：
+---
+
+### 3. Configure OpenClaw Model
+
+Add the model entry to `~/.openclaw/openclaw.json` under `models.providers.cliproxy.models`:
 
 ```json
 {
@@ -88,35 +130,74 @@ https://www.workbuddy.ai/login?platform=CLI&state=<STATE_UUID>
 }
 ```
 
-並在 `agents.defaults.models` 加入 alias：
+Add an alias under `agents.defaults.models`:
 ```json
 "cliproxy/deepseek-v4.1-flash": {
   "alias": "ds-v4.1"
 }
 ```
 
-重啟 OpenClaw 生效：
+Restart OpenClaw Gateway to reload the catalog:
 ```bash
 openclaw gateway restart
 ```
 
 ---
 
-## 👥 將 Sub-agents 編制換軌為 DeepSeek V4.1 Flash
+### 4. Delegate Heavy Sub-Agent Tasks to DeepSeek V4.1 Flash
 
-為了發揮 1M 超大上下文優勢，建議將常用 Sub-agent（代碼修復者、文檔員、探索員）全數切換至此模型：
+Leverage the 1M token context window and zero-cost quota by re-routing automated sub-agents (`fixer`, `librarian`, `explorer`) in `~/.openclaw/openclaw.json`:
 
 ```json
-"agents": {
-  "entries": {
-    "explorer": { "model": "cliproxy/deepseek-v4.1-flash" },
-    "librarian": { "model": "cliproxy/deepseek-v4.1-flash" },
-    "fixer": { "model": "cliproxy/deepseek-v4.1-flash" }
+{
+  "agents": {
+    "entries": {
+      "explorer": {
+        "model": "cliproxy/deepseek-v4.1-flash"
+      },
+      "librarian": {
+        "model": "cliproxy/deepseek-v4.1-flash"
+      },
+      "fixer": {
+        "model": "cliproxy/deepseek-v4.1-flash"
+      }
+    }
   }
 }
 ```
 
+| Sub-Agent | Role | Upgraded Capability |
+|---|---|---|
+| **`explorer` 🧭** | Codebase navigation & pattern discovery | Ingests entire repositories and AST maps without token anxiety. |
+| **`librarian` 📚** | Documentation & ecosystem research | Reads voluminous API docs, GitHub issues, and RFCs in a single prompt. |
+| **`fixer` 🔨** | Implementation & bug fixing | Leverages native Tool Calling for terminal execution, test verification, and automated patching. |
+
 ---
 
-## 📜 許可證
-MIT License
+## 🧪 Verification
+
+Test connectivity with a simple `curl` request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8317/v1/chat/completions \
+  -H "Authorization: Bearer <YOUR_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-v4.1-flash",
+    "messages": [
+      {"role": "user", "content": "Hello! Confirm 1M context & tool calling."}
+    ]
+  }'
+```
+
+In Telegram / OpenClaw chat:
+```text
+/model ds-v4.1
+/status
+```
+
+---
+
+## 📄 License
+
+Distributed under the [MIT License](LICENSE).
