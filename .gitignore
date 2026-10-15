@@ -1,0 +1,19 @@
+# Sensitive runtime data & account credentials
+auths/*.json
+!auths/.gitkeep
+data/*.json
+data/*.db
+data/*.log
+!data/.gitkeep
+
+# Environment & local configs
+.env
+config.json
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/

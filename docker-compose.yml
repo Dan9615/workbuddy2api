@@ -1,0 +1,14 @@
+services:
+  wb2api:
+    build: .
+    image: workbuddy2api-local:latest
+    container_name: workbuddy2api
+    restart: unless-stopped
+    ports:
+      - "7863:7863"
+    environment:
+      - TZ=Asia/Hong_Kong
+    volumes:
+      - ./auths:/app/auths
+      - ./data:/app/data
+      - ./config.json:/app/config.json:ro

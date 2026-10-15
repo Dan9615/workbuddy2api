@@ -1,200 +1,198 @@
-# WorkBuddy OpenClaw Bridge
+# WorkBuddy to OpenAI API Gateway
 
-> Seamlessly bridge Tencent **WorkBuddy / CodeBuddy** free tier quotas—especially **DeepSeek V4.1 Flash (1M Context Window)**—into standard OpenAI-compatible endpoints, and integrate directly with **OpenClaw** as your primary engine and sub-agent delegation backbone.
-
----
-
-## 🌟 Key Highlights
-
-- **🧠 1,000,000 Tokens (1M) Context Window**: Effortlessly ingest dozens of codebase files, extensive logs, or complete RFC specs in a single prompt.
-- **🛠️ Native Tool Calling (Function Calling)**: 100% compliant with standard OpenAI `tool_calls` schemas. Fully capable of executing terminal commands, file edits, git workflows, and autonomous sub-agent routines.
-- **💸 0 Credit Cost (Free Tier)**: Connects to WorkBuddy Global (`workbuddy.ai`) endpoints where DeepSeek V4.1 Flash is marked as `credits: x0.00` with zero billing consumption.
-- **⚡️ Built-in Reasoning Chain**: Returns structured `reasoning_content` with deep multi-step thinking traces.
-- **🚀 Non-Invasive Architecture**: Runs as lightweight Docker containers with multi-account connection pooling, token keepalives, and automatic hot-reloading.
+> Turn your **Tencent WorkBuddy / CodeBuddy** account into a standard **OpenAI-compatible API** (`/v1/chat/completions`) with a custom **Base URL** and **API Key**.  
+> Enjoy **1,000,000 Tokens (1M) Context Window** and **Free DeepSeek V4.1 Flash (`x0.00` credits)** across any AI client (NextChat, Chatbox, LobeChat, Cursor, Roo Code, Python/Node.js SDK, OpenClaw, etc.).
 
 ---
 
-## 🏗️ Architecture
+## 🌟 Features
 
-```text
-┌────────────────────────────────────────────────────────┐
-│                   OpenClaw Gateway                     │
-│  (Orchestrator, Hacker Agent, Sub-Agents, Workflows)   │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (OpenAI-compatible /v1)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│             CLIProxyAPI Router (Port :8317)            │
-│         (Model Mapping & Protocol Normalization)       │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (Forward to upstream gateway)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│          workbuddy2api Docker (Port :7863)             │
-│   (Multi-Account Pool, Token Keepalive & Hot-Reload)   │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (Reverse-engineered HTTPS API)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│              Tencent WorkBuddy Global API              │
-│       https://www.workbuddy.ai (credits: x0.00)        │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼
-         DeepSeek V4.1 Flash (1M Context + Tools)
-```
+- **Standard OpenAI Format**: Exposes standard `/v1/chat/completions` and `/v1/models` endpoints.
+- **Any Client Compatible**: Drop-in replacement for OpenAI endpoints in Chatbox, NextChat, LobeChat, Cursor, OpenWebUI, LangChain, etc.
+- **🧠 1,000,000 Tokens (1M) Context**: High-capacity context window for large codebases, research papers, and deep reasoning.
+- **🛠️ Native Function Calling (Tool Calls)**: Full support for standard OpenAI `tool_calls`.
+- **💸 0 Credit Cost (Free Tier)**: Route requests through WorkBuddy Global (`workbuddy.ai`) where DeepSeek V4.1 Flash is 100% free (`credits: x0.00`).
+- **🔄 Multi-Account Connection Pool**: Automatic round-robin, health checks, rate-limit cooldowns, and session stickiness.
+- **⚡️ Built-in Token Keepalive**: Automatically refreshes credentials in the background before expiry.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 3-Minute Quick Setup
 
-### 1. Launch Upstream Gateway (`workbuddy2api`)
+### Step 1: Clone and Configure
 
-Create a `docker-compose.yml` file:
+Clone this repository to your server or local machine:
 
-```yaml
-services:
-  wb2api:
-    image: workbuddy2api-wb2api
-    container_name: workbuddy2api
-    restart: unless-stopped
-    ports:
-      - "7863:7863"
-    environment:
-      - TZ=Asia/Hong_Kong
-    volumes:
-      - ./auths:/app/auths
-      - ./data:/app/data
-      - ./config.json:/app/config.json:ro
-
-  # Optional Web UI Manager & Dashboard
-  workbuddy-manager:
-    image: ghcr.io/ithtelab/workbuddy-manager:latest
-    container_name: workbuddy-manager
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:7864:7864"
-    environment:
-      TZ: Asia/Hong_Kong
-      WB2API_BASE: http://wb2api:7863
-      WB_TRUST_PROXY: "1"
-    volumes:
-      - ./manager-data:/app/data
-      - .:/opt/workbuddy2api
-    depends_on:
-      - wb2api
-```
-
-Start the service:
 ```bash
-docker compose up -d
+git clone https://github.com/Dan9615/workbuddy-openclaw.git
+cd workbuddy-openclaw
 ```
 
----
+Copy the example configuration:
+```bash
+cp config.example.json config.json
+```
 
-### 2. Authenticate WorkBuddy Account (OAuth)
-
-1. Generate an authorization URL:
-   ```bash
-   curl -s -X POST "https://www.workbuddy.ai/v2/plugin/auth/state?platform=CLI"
-   ```
-2. Open the returned `authUrl` in your browser and complete Google OAuth login:
-   ```text
-   https://www.workbuddy.ai/login?platform=CLI&state=<STATE_UUID>
-   ```
-3. Poll for the access token:
-   ```bash
-   curl -s "https://www.workbuddy.ai/v2/plugin/auth/token?state=<STATE_UUID>"
-   ```
-4. Save the resulting credentials into `./auths/workbuddy-<uid>.json`. The upstream pool will hot-reload the account within 5 seconds without restarting the container.
-
----
-
-### 3. Configure OpenClaw Model
-
-Add the model entry to `~/.openclaw/openclaw.json` under `models.providers.cliproxy.models`:
+Open `config.json` and set your preferred **API Key** (e.g., `sk-my-secret-key`):
 
 ```json
 {
-  "id": "deepseek-v4.1-flash",
-  "name": "DeepSeek V4.1 Flash (WorkBuddy)",
-  "api": "openai-completions",
-  "reasoning": true,
-  "contextWindow": 1000000,
-  "contextTokens": 1000000,
-  "maxTokens": 128000,
-  "compat": {
-    "supportsReasoningEffort": true
+  "listen": ":7863",
+  "api_key": "sk-my-secret-key",
+  "auth_dir": "./auths",
+  "state_file": "./data/state.json",
+  "global": {
+    "enabled": true
   },
-  "input": ["text", "image"]
-}
-```
-
-Add an alias under `agents.defaults.models`:
-```json
-"cliproxy/deepseek-v4.1-flash": {
-  "alias": "ds-v4.1"
-}
-```
-
-Restart OpenClaw Gateway to reload the catalog:
-```bash
-openclaw gateway restart
-```
-
----
-
-### 4. Delegate Heavy Sub-Agent Tasks to DeepSeek V4.1 Flash
-
-Leverage the 1M token context window and zero-cost quota by re-routing automated sub-agents (`fixer`, `librarian`, `explorer`) in `~/.openclaw/openclaw.json`:
-
-```json
-{
-  "agents": {
-    "entries": {
-      "explorer": {
-        "model": "cliproxy/deepseek-v4.1-flash"
-      },
-      "librarian": {
-        "model": "cliproxy/deepseek-v4.1-flash"
-      },
-      "fixer": {
-        "model": "cliproxy/deepseek-v4.1-flash"
-      }
-    }
+  "pool": {
+    "max_in_flight": 5
   }
 }
 ```
 
-| Sub-Agent | Role | Upgraded Capability |
-|---|---|---|
-| **`explorer` 🧭** | Codebase navigation & pattern discovery | Ingests entire repositories and AST maps without token anxiety. |
-| **`librarian` 📚** | Documentation & ecosystem research | Reads voluminous API docs, GitHub issues, and RFCs in a single prompt. |
-| **`fixer` 🔨** | Implementation & bug fixing | Leverages native Tool Calling for terminal execution, test verification, and automated patching. |
+---
+
+### Step 2: Start the Gateway (Docker)
+
+Launch the gateway container using Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+The gateway will now be listening on port `7863`.
 
 ---
 
-## 🧪 Verification
+### Step 3: Login to WorkBuddy (OAuth)
 
-Test connectivity with a simple `curl` request:
+Generate a one-time Google OAuth authorization link:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8317/v1/chat/completions \
-  -H "Authorization: Bearer <YOUR_API_KEY>" \
+docker compose exec -it wb2api ./login --realm=global url
+```
+
+1. **Open the returned URL** in your browser.
+2. Sign in with your **Google Account** on WorkBuddy.
+3. Poll and save the authorization token into the container:
+   ```bash
+   docker compose exec -it wb2api ./login --realm=global poll
+   ```
+
+> 💡 **Auto Hot-Reload**: The gateway automatically scans `./auths/` every 5 seconds. Once the token is saved, your account is immediately active in the connection pool—no container restart required!
+
+---
+
+## 🔑 Your API Credentials
+
+You now have a fully functional OpenAI API endpoint:
+
+| Parameter | Value |
+|---|---|
+| **Base URL** | `http://<YOUR_SERVER_IP>:7863/v1` (or `http://localhost:7863/v1`) |
+| **API Key** | The `api_key` you set in `config.json` (e.g., `sk-my-secret-key`) |
+| **Model Name** | `global:deepseek-v4.1-flash` (or `global:default-model`) |
+
+---
+
+## 💻 How to Use in Popular Clients
+
+### 1. `curl` (Terminal Test)
+
+```bash
+curl -X POST http://localhost:7863/v1/chat/completions \
+  -H "Authorization: Bearer sk-my-secret-key" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "deepseek-v4.1-flash",
+    "model": "global:deepseek-v4.1-flash",
     "messages": [
-      {"role": "user", "content": "Hello! Confirm 1M context & tool calling."}
+      {"role": "user", "content": "Hello! Reply in 5 words."}
     ]
   }'
 ```
 
-In Telegram / OpenClaw chat:
-```text
-/model ds-v4.1
-/status
+---
+
+### 2. Python (OpenAI Official SDK)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:7863/v1",
+    api_key="sk-my-secret-key"
+)
+
+response = client.chat.completions.create(
+    model="global:deepseek-v4.1-flash",
+    messages=[
+        {"role": "user", "content": "Explain quantum computing in one sentence."}
+    ]
+)
+
+print(response.choices[0].message.content)
 ```
+
+---
+
+### 3. Chatbox / NextChat / LobeChat / OpenWebUI
+
+In your client's settings:
+1. **Model Provider**: `OpenAI` (or `Custom OpenAI`)
+2. **API Host / Base URL**: `http://<YOUR_IP>:7863/v1`
+3. **API Key**: `sk-my-secret-key`
+4. **Custom Model**: Add `global:deepseek-v4.1-flash`
+
+---
+
+### 4. Cursor / Roo Code / Cline (VS Code)
+
+1. Open Extension / AI Settings.
+2. Choose **OpenAI Compatible**.
+3. Set **Base URL** to `http://localhost:7863/v1`.
+4. Set **API Key** to `sk-my-secret-key`.
+5. Model ID: `global:deepseek-v4.1-flash`.
+
+---
+
+### 5. OpenClaw (Optional)
+
+Add to `~/.openclaw/openclaw.json` under `models.providers`:
+
+```json
+{
+  "cliproxy": {
+    "baseUrl": "http://127.0.0.1:8317/v1",
+    "apiKey": "sk-my-secret-key",
+    "models": [
+      {
+        "id": "deepseek-v4.1-flash",
+        "name": "DeepSeek V4.1 Flash (WorkBuddy)",
+        "api": "openai-completions",
+        "reasoning": true,
+        "contextWindow": 1000000,
+        "input": ["text", "image"]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 📋 Available Models
+
+Query available models anytime via:
+
+```bash
+curl -H "Authorization: Bearer sk-my-secret-key" http://localhost:7863/v1/models
+```
+
+Popular models in the pool:
+- `global:deepseek-v4.1-flash` (1M Context, **0 Credit Free**)
+- `global:default-model` (Auto fast coding model)
+- `global:primary-model` (High quality reasoning)
+- `global:glm-5.3` / `global:kimi-k3`
 
 ---
 
