@@ -418,7 +418,7 @@ func (h *Handler) modelList() []map[string]any {
 				}
 			}
 			addListingCompat(entry)
-		out = append(out, entry)
+			out = append(out, entry)
 		}
 	}
 	return out
@@ -639,8 +639,9 @@ func (h *Handler) chatCompletions(w http.ResponseWriter, r *http.Request) {
 	// 是服务端指令，走本网关的客户端不属于该形态）。此处**轮转循环外**生成一次，
 	// 循环内每次出站原样复用 → 换号/重试/降级全部同 ID，后台不再碎片化（此前网关
 	// 一个都不发，上游按 HTTP 请求逐条记账，同一对话几十上百个 RequestID）。
-	//   - conversationID：body 提取（透传客户端原值，缺省空串——不伪造，见
-	//     ResolveConversationID；官方后台不校验一致，空会话则不建立聚合键）；
+	//   - conversationID：body / 入站 conversation header 原值优先；缺省时以
+	//     X-Session-ID、body session/cache key 或首条 user message 派生进程内稳定
+	//     opaque UUID，避免常见 OpenAI-compatible 请求漏掉 X-Conversation-ID。
 	//   - conversationRequestID：入站 X-Conversation-Request-ID 透传优先（客户端已
 	//     有自己的对话轮 ID 则以客户端为准）。派生分两态：
 	//     * turnKey 非空（有末条 user 消息）→ 带会话键客户端走 TurnRequestID(
@@ -652,7 +653,9 @@ func (h *Handler) chatCompletions(w http.ResponseWriter, r *http.Request) {
 	//       也空走 NewMessageID 请求级（TurnRequestID 空键行为）——轮转内捕获
 	//       一次即共享。
 	//   - messageID 在 ChatHeaders 内每条消息生成（消息级独立，无需外部可见）。
-	chatMeta := upstream.ChatMeta{ConversationID: session.ResolveConversationID(body)}
+	chatMeta := upstream.ChatMeta{ConversationID: session.ResolveConversationIDForRequest(
+		body, r.Header.Get("X-Conversation-ID"), r.Header.Get("X-Session-ID"),
+	)}
 	if v := r.Header.Get("X-Conversation-Request-ID"); v != "" {
 		chatMeta.ConversationRequestID = v
 	} else if turnKey != "" && sessKey != "" {

@@ -47,6 +47,89 @@ func TestResolveConversationID(t *testing.T) {
 	}
 }
 
+func TestResolveConversationIDForRequest(t *testing.T) {
+	firstTurn := []byte(`{"messages":[{"role":"user","content":"help me debug this service"}]}`)
+	secondTurn := []byte(`{"messages":[{"role":"user","content":"help me debug this service"},{"role":"assistant","content":"Sure"},{"role":"user","content":"inspect the logs"}]}`)
+
+	fromSession := ResolveConversationIDForRequest(firstTurn, "", "agent:main:thread:123")
+	if fromSession == "" || !isUUIDv5(fromSession) {
+		t.Fatalf("session-derived conversation ID = %q; want UUIDv5", fromSession)
+	}
+	if strings.Contains(fromSession, "agent:main:thread:123") {
+		t.Errorf("session identifier leaked in conversation ID: %q", fromSession)
+	}
+	if got := ResolveConversationIDForRequest(firstTurn, "", "agent:main:thread:123"); got != fromSession {
+		t.Errorf("same session must yield stable ID: %q != %q", got, fromSession)
+	}
+	if got := ResolveConversationIDForRequest(firstTurn, "", "agent:main:thread:456"); got == fromSession {
+		t.Errorf("different sessions must yield different IDs: %q", got)
+	}
+
+	fromFirstMessage := ResolveConversationIDForRequest(firstTurn, "", "")
+	if got := ResolveConversationIDForRequest(secondTurn, "", ""); got != fromFirstMessage {
+		t.Errorf("same first user message must keep a stable ID across turns: %q != %q", got, fromFirstMessage)
+	}
+	if got := ResolveConversationIDForRequest([]byte(`{"prompt_cache_key":"cache-1","messages":[]}`), "", ""); got != conversationUUIDv5("body-key:cache-1") {
+		t.Errorf("body cache key fallback = %q", got)
+	}
+	for _, body := range []string{
+		`{"user":"global-user","messages":[{"role":"user","content":"same session opener"}]}`,
+		`{"user_id":"global-user","messages":[{"role":"user","content":"same session opener"}]}`,
+		`{"metadata":{"user_id":"global-user"},"messages":[{"role":"user","content":"same session opener"}]}`,
+	} {
+		if got := ResolveConversationIDForRequest([]byte(body), "", ""); got == "" || got != conversationUUIDv5("first-user:same session opener") {
+			t.Errorf("user-scoped request should not collapse conversation IDs to user_id: got %q for body %s", got, body)
+		}
+	}
+	if got := ResolveConversationIDForRequest([]byte(`{"conversationId":"body-conv"}`), "header-conv", "session-1"); got != "body-conv" {
+		t.Errorf("explicit body ID must win: %q", got)
+	}
+	if got := ResolveConversationIDForRequest(nil, "header-conv", "session-1"); got != "header-conv" {
+		t.Errorf("explicit conversation header must win: %q", got)
+	}
+	if got := ResolveConversationIDForRequest(nil, "", "session-1"); got != conversationUUIDv5("session:session-1") {
+		t.Errorf("session header fallback = %q", got)
+	}
+	if got := ResolveConversationIDForRequest([]byte(`{"messages":[]}`), "", ""); got != "" {
+		t.Errorf("request with no session signal must not fabricate an ID: %q", got)
+	}
+}
+
+func TestConversationUUIDv5ReferenceVectors(t *testing.T) {
+	// RFC 4122 name-based UUID reference vectors with the process salt fixed to a
+	// known byte sequence. This checks the algorithm, not just its UUID shape.
+	previousSalt := deriveSalt
+	deriveSalt = "00112233445566778899aabbccddeeff"
+	t.Cleanup(func() { deriveSalt = previousSalt })
+	cases := []struct {
+		name string
+		want string
+	}{
+		{"session:abc", "2ca830de-ec16-5d1c-85c6-2d33dc9f749e"},
+		{"first-user:hi", "02336081-4842-5a11-a25d-7fcdbddc31b4"},
+	}
+	for _, tc := range cases {
+		if got := conversationUUIDv5(tc.name); got != tc.want {
+			t.Errorf("conversationUUIDv5(%q) = %q want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func isUUIDv5(id string) bool {
+	if len(id) != 36 || id[8] != '-' || id[13] != '-' || id[18] != '-' || id[23] != '-' || id[14] != '5' || id[19] < '8' || id[19] > 'b' {
+		return false
+	}
+	for i, c := range id {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			continue
+		}
+		if !strings.ContainsRune("0123456789abcdef", c) {
+			return false
+		}
+	}
+	return true
+}
+
 // TestNewMessageIDFormat 32 位 hex 且不为空、两次调用大概率不同（随机性冒烟）。
 func TestNewMessageIDFormat(t *testing.T) {
 	for i := 0; i < 50; i++ {

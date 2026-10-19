@@ -43,6 +43,9 @@ func TestClassify(t *testing.T) {
 		// 内容策略拦截（HTTP 400 + 审核文案）：误报信号，不罚账号，走降级重试。
 		{400, `Illegal API invocation from an unapproved channel`, ErrContentBlocked},
 		{400, `{"code":11128,"msg":"blocked by security policy"}`, ErrContentBlocked},
+		// 11128 shares "request illegal" with account-level 11140; business code must win.
+		{400, `{"code":11128,"msg":"request illegal"}`, ErrContentBlocked},
+		{403, `{"error":{"data":{"code":11128,"msg":"request illegal"}}}`, ErrContentBlocked},
 		{400, `unapproved channel`, ErrContentBlocked},
 		// 11148 tool-call sequence mismatch is request-scoped, including nested/quoted code fields.
 		{400, "{\"code\":11148,\"msg\":\"tool calls and tool results do not match\"}", ErrToolCallMismatch},
@@ -77,7 +80,8 @@ func TestClassify(t *testing.T) {
 		// 注意：11140 不按 code 单独判定——该 code 也承载 rate-limiting 软限流文案
 		// （上方 {200, "code":11140 rate-limiting} 必须仍是 ErrSoftRate），只能靠 msg 区分。
 		{403, `{"error":{"data":{"code":11140,"msg":"request illegal"}}}`, ErrAccountFault},
-		{403, `request illegal`, ErrAccountFault},
+		// No structured account-fault code: do not infer a permanent account ban from text alone.
+		{403, `request illegal`, ErrWafBlock},
 		{429, `{"error":{"data":{"code":14017,"msg":"The trial version is not yet activated. Please log out of your current account and log in again to activate it immediately and start your free trial."}}}`, ErrAccountFault},
 		{400, `{"code":14017,"msg":"trial not activated"}`, ErrAccountFault},
 		// session 死亡优先于限流文案（401+12153 需人工重登，短冷却无意义）。
@@ -110,6 +114,7 @@ func TestClassify(t *testing.T) {
 		// 落到 status==429 兜底会误归 soft_rate，账号级故障等不来自愈。
 		{429, `{"code":14017,"msg":"trial not activated"}`, ErrAccountFault},
 		{429, `{"error":{"data":{"code":11140,"msg":"request illegal"}}}`, ErrAccountFault},
+		{429, `{"code":11128,"msg":"request illegal"}`, ErrContentBlocked},
 		// Issue #175：14018 明确表示账号积分耗尽，即使 HTTP 状态是 429 也必须
 		// 走硬积分冷却；仅有相同文案而无该业务码的普通 429 仍保持软限流。
 		{429, `{"code":14018,"msg":"Credits exhausted"}`, ErrHardCredit},
@@ -148,7 +153,7 @@ func TestIsWafBlocked(t *testing.T) {
 	}{
 		{403, "", true},
 		{403, "<html>blocked</html>", true},
-		{403, `{"code":1}`, false},               // 有 "code": 字段
+		{403, `{"code":1}`, false},                // 有 "code": 字段
 		{403, `{"msg":"request illegal"}`, false}, // 有 "msg": 字段（且该文案本就该走 accountFault）
 		{402, "", false},                          // 非 403
 		{429, "", false},
@@ -276,6 +281,8 @@ func TestClassifyContentBlocked(t *testing.T) {
 	for _, body := range []string{
 		`{"code":11128,"msg":"blocked by security policy"}`,
 		`{"code":"11128","msg":"blocked by security policy"}`,
+		`{"code":11128,"msg":"request illegal"}`,
+		`{"error":{"data":{"code":11128,"msg":"request illegal"}}}`,
 		`Illegal API invocation from an unapproved channel`,
 		`{"code":11128,"msg":"Illegal API invocation from an unapproved channel"}`,
 	} {

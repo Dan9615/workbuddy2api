@@ -211,8 +211,8 @@ def buddy_adopt(auth, gap=1.05) -> tuple:
     return do_post(auth, chat_base(auth), PATH_BUDDY_FIRST, {})
 
 
-def chat_event(auth, conversation_id=None, model_id="deepseek-v4-flash",
-               model_name="DeepSeek V4 Flash", mode="craft"):
+def chat_event(auth, conversation_id=None, model_id="deepseek-v4.1-flash",
+               model_name="DeepSeek V4.1 Flash", mode="craft"):
     """客户端 chat_request_send 事件完整形状（照抄 report.go / probe_active.py）。
 
     必须带 userId（=账号 uid），缺失则服务端 200 但静默丢弃。
@@ -234,8 +234,8 @@ def chat_event(auth, conversation_id=None, model_id="deepseek-v4-flash",
             "agentName": "default", "agentType": "conversation", "userId": auth["uid"]}
 
 
-def report_activity(auth, count=1, gap=1.05, model_id="deepseek-v4-flash",
-                    model_name="DeepSeek V4 Flash", mode="craft") -> list:
+def report_activity(auth, count=1, gap=1.05, model_id="deepseek-v4.1-flash",
+                    model_name="DeepSeek V4.1 Flash", mode="craft") -> list:
     """向 {billing}/v2/report 上报 count 条 chat_request_send。
 
     每次间隔 >= gap 秒（默认 1.05，匹配 probe_active.py 的同接口限速口径）。

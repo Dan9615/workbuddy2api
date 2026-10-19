@@ -205,22 +205,15 @@ var invalidImageRule = errorRule{kind: ErrImageInvalid, mode: matchFold, pattern
 // 网络层/解析层错误不在此识别（见 IsAlreadyCheckin）。
 var alreadyCheckinRule = errorRule{mode: matchFold, patterns: []string{"已签到", "already"}}
 
-// accountFaultRule 账号级授权/配额故障关键词（大小写不敏感子串匹配）。
+// accountFaultRule 账号级授权/配额故障文案（大小写不敏感子串匹配）。
 //
-// 定位：这类错误是**账号本身状态**决定的本机故障，不是请求格式、不是临时限流、
-// 也不是内容误报——继续重试只会反复刷上游风控/配额检查，必须把该账号冷却轮换。
-//   - "request illegal"（code 11140）→ 上游 auth/auth_forbidden，账号级授权风控
-//     （实测 global 账号：同一规范化请求 A1 403/11140 vs A2 429/14017，差异全由账号
-//     数据决定）。需重新 OAuth 登录才能恢复，短冷却只能阻止继续送死。
-//   - code 14017（"trial not activated" / "The trial version is not yet activated"）→
-//     上游 quota/quota_not_activated，register 未完成的试用未激活账号，同样账号级。
-//
-// 注意 11140 **不能**按 code 判定：该 code 也承载模型级限流文案（"The model provider
-// is rate-limiting requests."），那种场景必须保持 ErrSoftRate（上方 softRateRule
-// 先命中）。故此处只收 msg 关键词 "request illegal"（auth_forbidden 的真实文案），
-// 120 与 private 均落同一分类。14017 文案唯一（无软限流歧义），可安全收录。
+// 14017（"trial not activated" / "The trial version is not yet activated"）表示
+// register 未完成的试用未激活账号；账号状态决定，需完成 register 后才能恢复。
+// "request illegal" 不放在此通用词表中：它同时出现在 11128 请求/渠道拦截和
+// 11140 账号授权风控里，只能与结构化 code=11140 联合判定，防止请求拒绝误封账号。
+// 11140 也承载模型级限流文案（"The model provider is rate-limiting requests."），
+// 该文案由上方 softRateRule 判定，不属于账号封禁。
 var accountFaultRule = errorRule{kind: ErrAccountFault, mode: matchFold, patterns: []string{
-	"request illegal",
 	"trial not activated",
 	"trial version is not yet activated",
 }}
@@ -270,7 +263,7 @@ const softRateResetPatternEN = `(?i)reset at (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2
 // 错误风暴（429 轰炸）时尤甚。模式串均为纯常量，与 sanitize.go 的包级
 // 预编译先例保持一致。regexp 并发安全（匹配只读），无需额外锁。
 var (
-	reModelRateLimit = regexp.MustCompile(`"code"\s*:\s*"?` + modelRateLimitCode + `"?`)
+	reModelRateLimit  = regexp.MustCompile(`"code"\s*:\s*"?` + modelRateLimitCode + `"?`)
 	reSoftRateResetCN = regexp.MustCompile(softRateResetPatternCN)
 	reSoftRateResetEN = regexp.MustCompile(softRateResetPatternEN)
 )
@@ -562,6 +555,17 @@ func Classify(status int, body string) ErrKind {
 	// （429+14017 必须 accountFault，401+12153 混排 "rate limit" 必须 sessionDead）。
 	if sessionDeadRule.hit(body, lower) {
 		return ErrSessionDead
+	}
+	// 11128 在部分 WorkBuddy realm 返回 msg="request illegal"，但它是请求/渠道
+	// 校验拒绝，不是账号封禁。必须先于 accountFault 判定，否则 applyErrorPolicy
+	// 会将每个被拦截请求的账号永久 Disable，重试切号后耗尽整个池。
+	if status >= 400 && status < 500 && hasBusinessCode(body, "11128") {
+		return ErrContentBlocked
+	}
+	// 只有结构化 code=11140 + "request illegal" 才表示账号授权风控。不能只看文案：
+	// 11128 等请求级拦截也使用相同 msg；11140 的 rate-limit 变体则由 softRateRule 处理。
+	if hasBusinessCode(body, "11140") && strings.Contains(lower, "request illegal") {
+		return ErrAccountFault
 	}
 	if accountFaultRule.hit(body, lower) {
 		return ErrAccountFault

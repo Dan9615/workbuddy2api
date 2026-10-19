@@ -1,19 +1,15 @@
-# Sensitive runtime data & account credentials
-auths/*.json
+# credentials / runtime state (never commit)
+auths/*
 !auths/.gitkeep
-data/*.json
-data/*.db
-data/*.log
+data/*
 !data/.gitkeep
-
-# Environment & local configs
-.env
+backups/
+bin/
 config.json
-
-# OS / Editor artifacts
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-.vscode/
-.idea/
+*.log
+.env
+.env.*
+*.pem
+*.key
+__pycache__/
+*.pyc

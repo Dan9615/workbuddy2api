@@ -2007,8 +2007,9 @@ func TestContentBlockedCustomModeDoesNotDegrade(t *testing.T) {
 // 且 passthrough 降级重试后第二次仍拦 → 立即 400 content_blocked（不轮转），
 // message 透传上游 code/msg 原文（error-passthrough）。
 func TestContentBlockedDoesNotPenalizeAccount(t *testing.T) {
+	// This is the exact upstream shape that previously got misclassified as an account ban.
 	up := newFakeUpstream(t, func(authz string) (int, string, bool) {
-		return 400, `{"code":11128,"msg":"blocked by security policy"}`, false
+		return 400, `{"code":11128,"msg":"request illegal"}`, false
 	})
 	p := testPoolWith(&auth.Auth{UID: "u1", AccessToken: "at1", ExpiresAt: 9999999999})
 	// 熔断阈值 1：若误罚 NoteError 一次即熔断；content_blocked 不应喂熔断。

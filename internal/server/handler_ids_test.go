@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"workbuddy2api/internal/auth"
+	"workbuddy2api/internal/session"
 	"workbuddy2api/internal/upstream"
 )
 
@@ -134,6 +135,39 @@ func TestChatConversationIDPassthrough(t *testing.T) {
 	}
 	if got := captured.Get("X-Conversation-Request-ID"); got == "" {
 		t.Error("X-Conversation-Request-ID missing")
+	}
+}
+
+func TestChatConversationIDFromSessionHeader(t *testing.T) {
+	var captured http.Header
+	up := &upstream.Client{
+		HTTP: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			captured = r.Header.Clone()
+			return &http.Response{
+				StatusCode: 200,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+				Body:       io.NopCloser(strings.NewReader(sseOK)),
+			}, nil
+		})},
+		ChatBaseCN:    "https://fake.example",
+		BillingBaseCN: "https://fake.example",
+	}
+	p := testPoolWith(&auth.Auth{UID: "u1", AccessToken: "at1", ExpiresAt: 9999999999})
+	h := NewHandler(Config{Pool: p, Upstream: up})
+	body := `{"model":"glm-5.2","stream":true,"messages":[{"role":"user","content":"hello"}]}`
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(body))
+	req.Header.Set("X-Session-ID", "agent:hacker:main:thread:277383")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("code=%d body=%s", rec.Code, rec.Body)
+	}
+	want := session.ResolveConversationIDForRequest([]byte(body), "", "agent:hacker:main:thread:277383")
+	if got := captured.Get("X-Conversation-ID"); got != want {
+		t.Errorf("X-Conversation-ID=%q want session-derived %q", got, want)
+	}
+	if got := captured.Get("X-Conversation-ID"); got == "agent:hacker:main:thread:277383" {
+		t.Errorf("raw session ID leaked upstream: %q", got)
 	}
 }
 

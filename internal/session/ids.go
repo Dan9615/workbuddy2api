@@ -9,6 +9,7 @@ package session
 
 import (
 	cryptorand "crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -42,6 +43,49 @@ func ResolveConversationID(body []byte) string {
 		return v
 	}
 	return strOrEmpty(obj["conversationId"])
+}
+
+// ResolveConversationIDForRequest picks an upstream conversation ID without
+// exposing client session keys or prompt text. Explicit body/header IDs win;
+// otherwise use a salted UUIDv5 derived from X-Session-ID, the body session/cache
+// key, or the first user message. With no stable session signal, return empty.
+func ResolveConversationIDForRequest(body []byte, conversationHeader, sessionHeader string) string {
+	if id := ResolveConversationID(body); id != "" {
+		return id
+	}
+	if id := strings.TrimSpace(conversationHeader); id != "" {
+		return id
+	}
+	if id := strings.TrimSpace(sessionHeader); id != "" {
+		return conversationUUIDv5("session:" + id)
+	}
+	if key := ExtractKey(body); key != "" {
+		return conversationUUIDv5("body-key:" + key)
+	}
+	if text := firstUserText(body); text != "" {
+		return conversationUUIDv5("first-user:" + text)
+	}
+	return ""
+}
+
+// conversationUUIDv5 derives a process-scoped opaque UUIDv5. The namespace is
+// seeded from the process-random deriveSalt, preventing offline guessing of
+// low-entropy session names or prompts; IDs remain stable until process restart.
+func conversationUUIDv5(name string) string {
+	namespace, err := hex.DecodeString(deriveSalt)
+	if err != nil || len(namespace) != 16 || name == "" {
+		return ""
+	}
+	// Treat the random namespace as a UUIDv4 before applying the UUIDv5 algorithm.
+	namespace[6] = (namespace[6] & 0x0f) | 0x40
+	namespace[8] = (namespace[8] & 0x3f) | 0x80
+	h := sha1.New()
+	_, _ = h.Write(namespace)
+	_, _ = h.Write([]byte(name))
+	id := h.Sum(nil)[:16]
+	id[6] = (id[6] & 0x0f) | 0x50
+	id[8] = (id[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", id[0:4], id[4:6], id[6:8], id[8:10], id[10:16])
 }
 
 // NewMessageID 生成消息级 ID：32 位 hex（UUID v4 去横线的长度形态），对齐官方

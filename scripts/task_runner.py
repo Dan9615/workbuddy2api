@@ -730,7 +730,7 @@ def build_event(auth, kind, obj_id, meta, idx):
                 "expertType": m.get("expertType") or "agent", "source": "builtin",
                 "version": m.get("version") or "", "cost": 0, "characterCount": 12,
                 "conversationId": cid, "requestId": rid, "messageId": rid,
-                "requestModelId": "deepseek-v4-flash", "requestModelName": "DeepSeek V4 Flash",
+                "requestModelId": "deepseek-v4.1-flash", "requestModelName": "DeepSeek V4.1 Flash",
                 "userId": uid}
 
     if kind == "team":
@@ -739,8 +739,8 @@ def build_event(auth, kind, obj_id, meta, idx):
                 "expertTitle": m.get("name") or "", "type": m.get("category") or "",
                 "expertType": "team", "source": "builtin", "version": m.get("version") or "",
                 "cost": 0, "characterCount": 12, "conversationId": cid, "requestId": rid,
-                "messageId": rid, "requestModelId": "deepseek-v4-flash",
-                "requestModelName": "DeepSeek V4 Flash", "userId": uid}
+                "messageId": rid, "requestModelId": "deepseek-v4.1-flash",
+                "requestModelName": "DeepSeek V4.1 Flash", "userId": uid}
 
     if kind == "skill":
         sname = meta if isinstance(meta, str) else (meta.get("name") if isinstance(meta, dict) else "")
@@ -752,7 +752,7 @@ def build_event(auth, kind, obj_id, meta, idx):
     if kind == "automation":
         return {"eventCode": "automated_task_create_suc", "timestamp": now,
                 "reportDelay": 0, "name": "每周五自动生成周报", "source": "manually",
-                "modelId": "deepseek-v4-flash", "modelIsThinking": False,
+                "modelId": "deepseek-v4.1-flash", "modelIsThinking": False,
                 "expertId": "", "expertMarketplace": "", "connectorIds": "",
                 "connectorCount": 0, "skills": "", "skillCount": 0,
                 "scheduleType": "recurring", "pushToWeChat": False, "pushToWecomBot": False,
@@ -783,7 +783,7 @@ def build_event(auth, kind, obj_id, meta, idx):
                 "expertType": m.get("expertType") or "agent", "source": "builtin",
                 "version": m.get("version") or "", "cost": 0, "characterCount": 12,
                 "conversationId": cid, "requestId": rid, "messageId": rid,
-                "requestModelId": "deepseek-v4-flash", "requestModelName": "DeepSeek V4 Flash",
+                "requestModelId": "deepseek-v4.1-flash", "requestModelName": "DeepSeek V4.1 Flash",
                 "userId": uid}
 
     if kind == "skin":
@@ -793,8 +793,8 @@ def build_event(auth, kind, obj_id, meta, idx):
                 "type": "unknown", "name": m.get("name") or obj_id, "userId": uid}
 
     if kind in ("chat", "glmchat", "cat"):
-        model_id = "glm-5.2" if kind in ("glmchat", "cat") else "deepseek-v4-flash"
-        model_name = "GLM-5.2" if kind in ("glmchat", "cat") else "DeepSeek V4 Flash"
+        model_id = "glm-5.2" if kind in ("glmchat", "cat") else "deepseek-v4.1-flash"
+        model_name = "GLM-5.2" if kind in ("glmchat", "cat") else "DeepSeek V4.1 Flash"
         mode = "night" if kind == "cat" else "craft"
         return {"eventCode": "chat_request_send", "timestamp": now, "reportDelay": 0,
                 "mode": mode, "conversationId": cid, "requestId": cid,
