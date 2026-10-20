@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 BIN=./credit
 if [[ ! -x "$BIN" ]] || find . \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' \) -newer "$BIN" -print -quit | grep -q .; then
     if ! command -v go >/dev/null 2>&1; then
-        echo "需要 go 构建 credit（或镜像内置 /app/credit）" >&2
+        echo "Go is required to build credit (or use an image with /app/credit)" >&2
         exit 1
     fi
     echo "build credit ..." >&2

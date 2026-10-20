@@ -99,7 +99,7 @@ t1() {
     else
         fail "落盘段意外成功"
     fi
-    if grep -q "不可写" <<<"$OUT"; then
+    if grep -q "not writable" <<<"$OUT"; then
         ok "输出含「不可写」指引文案"
     else
         fail "缺少「不可写」指引（诊断仍是死代码？）"
@@ -155,8 +155,8 @@ STUB
     else
         fail "login.sh 意外走完（预检未生效）"
     fi
-    if grep -q "无法写入" <<<"$OUT"; then
-        ok "输出含「无法写入」预检文案"
+    if grep -q "Cannot write to" <<<"$OUT"; then
+        ok "输出含「Cannot write to」预检文案"
     else
         fail "缺少预检指引文案"
     fi
@@ -209,10 +209,10 @@ STUB
     else
         fail "可写目录也被预检拦截（误伤）"
     fi
-    if grep -q "无法写入" <<<"$OUT"; then
+    if grep -q "Cannot write to" <<<"$OUT"; then
         fail "可写目录误报不可写"
     else
-        ok "无「无法写入」误报"
+        ok "无「Cannot write to」误报"
     fi
     rm -rf "$dir"
 }

@@ -82,13 +82,13 @@ func (c *modelCatalog) initLocked() {
 	var file map[string]ModelCapEntry
 	if err := json.Unmarshal(raw, &file); err != nil {
 		// 整体损坏：降级种子 + WARN 不崩溃（任务书 §手动维护入口容错）。
-		log.Printf("WARN: [upstream] model.json 损坏（降级内置种子表）: path=%s err=%v", c.path, err)
+		log.Printf("WARN: [upstream] invalid model.json (using built-in catalog): path=%s err=%v", c.path, err)
 		c.loadSeedLocked()
 		return
 	}
 	for id, e := range file {
 		if !validCapEntry(e) {
-			log.Printf("WARN: [upstream] model.json 条目非法剔除: model=%s entry=%+v", id, e)
+			log.Printf("WARN: [upstream] removed invalid model.json entry: model=%s entry=%+v", id, e)
 			continue
 		}
 		c.entries[id] = e
@@ -161,11 +161,11 @@ func (c *modelCatalog) saveLocked() {
 	}
 	tmp := c.path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
-		log.Printf("WARN: [upstream] model.json 落盘失败（内存缓存仍生效）: path=%s err=%v", c.path, err)
+		log.Printf("WARN: [upstream] cannot persist model.json (in-memory cache remains active): path=%s err=%v", c.path, err)
 		return
 	}
 	if err := os.Rename(tmp, c.path); err != nil {
-		log.Printf("WARN: [upstream] model.json 落盘改名失败: path=%s err=%v", c.path, err)
+		log.Printf("WARN: [upstream] cannot rename persisted model.json: path=%s err=%v", c.path, err)
 	}
 }
 

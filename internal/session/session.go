@@ -128,7 +128,7 @@ func (r *Router) LoadFromStore() {
 	}
 	r.mu.Unlock()
 	if loaded > 0 {
-		log.Printf("[session] 从 Redis 恢复 %d 条粘性会话绑定", loaded)
+		log.Printf("[session] restored %d sticky session bindings from Redis", loaded)
 	}
 }
 

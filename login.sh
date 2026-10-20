@@ -24,8 +24,8 @@ mkdir -p "$AUTH_DIR" 2>/dev/null || true
 # ─── auths/ 可写性预检（issue #160）：chown -R 10001 后 host 侧 uid 无写权限，
 #      此时走完整 OAuth 再在落盘处失败 = 白跑一次浏览器授权。OAuth 启动前 fail-fast。───
 if ! [[ -w "$AUTH_DIR" ]]; then
-    echo "❌ 无法写入 $AUTH_DIR（auths/ 已归属容器 uid 10001？）" >&2
-    echo "    请在容器内登录（无需 chown 回滚，属主自动正确）：" >&2
+    echo "❌ Cannot write to $AUTH_DIR (is auths/ owned by container UID 10001?)" >&2
+    echo "    Log in inside the container to save credentials with the correct owner:" >&2
     echo "    docker compose exec -it wb2api bash -c './login.sh' && docker compose restart wb2api" >&2
     exit 1
 fi
@@ -36,7 +36,7 @@ fi
 LOGIN_BIN="./login"
 if [[ ! -x "$LOGIN_BIN" ]] || find . \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' \) -newer "$LOGIN_BIN" -print -quit | grep -q .; then
     if ! command -v go >/dev/null 2>&1; then
-        echo "需要 go 构建 login（或镜像内置 /app/login）" >&2
+        echo "Go is required to build login (or use an image with /app/login)" >&2
         exit 1
     fi
     go build -o "$LOGIN_BIN" ./cmd/login
@@ -54,44 +54,44 @@ if [[ -z "$REALM" ]]; then
         REALM=$("$LOGIN_BIN" realm)
     else
         REALM="cn"
-        echo "（非交互 stdin，默认国内版 cn；可用 --realm=global 指定国际版）" >&2
+        echo "(Non-interactive input: defaulting to cn; use --realm=global for Global)" >&2
     fi
 fi
 # global 时跳过 CN 签到、auth 文件写 realm=global（见下方签到分支）
 
 echo "============================================================"
-echo "  WorkBuddy OAuth 登录"
+echo "  WorkBuddy OAuth login"
 echo "============================================================"
 echo ""
 
 AUTH_URL=$("$LOGIN_BIN" "--realm=$REALM" url)
 
-echo "请在浏览器中打开以下链接完成登录："
+echo "Open this URL in your browser to log in:"
 echo ""
 echo "  $AUTH_URL"
 echo ""
 
 if command -v xclip &>/dev/null; then
-    echo -n "$AUTH_URL" | xclip -selection clipboard 2>/dev/null && echo "(已复制到剪贴板)"
+    echo -n "$AUTH_URL" | xclip -selection clipboard 2>/dev/null && echo "(Copied to clipboard)"
 elif command -v xsel &>/dev/null; then
-    echo -n "$AUTH_URL" | xsel --clipboard 2>/dev/null && echo "(已复制到剪贴板)"
+    echo -n "$AUTH_URL" | xsel --clipboard 2>/dev/null && echo "(Copied to clipboard)"
 fi
 
 echo ""
-read -rp "完成登录后按 y 继续: " ans
+read -rp "After logging in, press y to continue: " ans
 if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
-    echo "已取消"
+    echo "Cancelled"
     exit 1
 fi
 
 echo ""
-echo "正在获取 token..."
+echo "Fetching token..."
 
 RESULT=$("$LOGIN_BIN" "--realm=$REALM" poll) || {
     echo ""
-    echo "获取 token 失败。可能原因："
-    echo "  - 登录还没完成就按了 y（重新运行 ./login.sh 再试）"
-    echo "  - 登录页报错（把报错截图发出来排查）"
+    echo "Failed to fetch token. Possible reasons:"
+    echo "  - You pressed y before login completed (run ./login.sh again)"
+    echo "  - The login page reported an error (check the error details)"
     exit 1
 }
 
@@ -104,7 +104,7 @@ ENT_ID=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin
 NICKNAME=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('nickname',''))")
 
 if [[ -z "$USER_ID" ]]; then
-    echo "无法获取 uid，请检查 token 是否有效"
+    echo "Cannot obtain uid; check that the token is valid"
     exit 1
 fi
 
@@ -116,7 +116,7 @@ EXPIRES_AT=$(( $(date +%s) + EXPIRES_IN ))
 # ─── 签到（仅 CN：POST codebuddy.cn/v2/billing/meter/daily-checkin，幂等不阻塞。
 #      global realm 跳过——国际版计费端点与签到端点未实测，避免误打 CN 端点）───
 if [[ "$REALM" == "global" ]]; then
-    echo "签到: global realm 跳过（国际版签到端点未实测）"
+    echo "Check-in: skipped for Global (endpoint not verified)"
 else
 WB2A_LOGIN_TOKEN="$TOKEN" \
 WB2A_LOGIN_USER_ID="$USER_ID" \
@@ -146,29 +146,29 @@ try:
         body = json.loads(r.read().decode() or "{}")
     if body.get("code") == 0:
         data = body.get("data") or {}
-        print(f"签到: 成功 {json.dumps(data, ensure_ascii=False)[:150]}")
+        print(f"Check-in: success {json.dumps(data, ensure_ascii=False)[:150]}")
     else:
-        print(f"签到: {body.get('msg', json.dumps(body)[:150])}")
+        print(f"Check-in: {body.get('msg', json.dumps(body)[:150])}")
 except urllib.error.HTTPError as e:
     # 已签到等业务错误也走 4xx（实测 code=10001 "今天已签到"）
     try:
         body = json.loads(e.read().decode() or "{}")
-        print(f"签到: {body.get('msg', 'http %d' % e.code)}")
+        print(f"Check-in: {body.get('msg', 'http %d' % e.code)}")
     except Exception:
-        print(f"签到: http {e.code}")
+        print(f"Check-in: http {e.code}")
 except Exception as e:
-    print(f"签到: {e}")
+    print(f"Check-in: {e}")
 PYEOF
 fi
 
 # ─── 落盘 auth 文件（与 internal/auth 读取格式一致）─────────────────
 AUTH_FILE="$AUTH_DIR/workbuddy-${USER_ID}.json"
 if [[ -f "$AUTH_FILE" ]]; then
-    echo "账号已存在（uid=${USER_ID}），将覆盖更新凭证"
-    ACTION="覆盖"
+    echo "Account exists (uid=${USER_ID}); updating credentials"
+    ACTION="updated"
 else
-    echo "新账号（uid=${USER_ID}），新增 auth 文件"
-    ACTION="新增"
+    echo "New account (uid=${USER_ID}); creating auth file"
+    ACTION="created"
 fi
 WB2A_LOGIN_TOKEN="$TOKEN" \
 WB2A_LOGIN_REFRESH="$REFRESH" \
@@ -211,9 +211,9 @@ try:
     # 权限检测：容器内 app(uid 10001) 需要读此文件
     st = os.stat(auth_file)
     if st.st_uid != CONTAINER_UID:
-        print(f"\n⚠️  权限警告：{auth_file} 属主 uid={st.st_uid}，容器内 app(uid={CONTAINER_UID}) 可能读不到")
-        print(f"    请执行：chown -R {CONTAINER_UID}:{CONTAINER_UID} ./auths")
-        print(f"    或在容器内登录（属主自动正确）：docker compose exec -it wb2api bash -c './login.sh'\n")
+        print(f"\n⚠️  Permission warning: {auth_file} is owned by uid={st.st_uid}; container app(uid={CONTAINER_UID}) may be unable to read it")
+        print(f"    Run: chown -R {CONTAINER_UID}:{CONTAINER_UID} ./auths")
+        print(f"    Or log in inside the container (correct owner): docker compose exec -it wb2api bash -c './login.sh'\n")
 except Exception:
     if tmp_file is not None:
         try:
@@ -223,11 +223,11 @@ except Exception:
     # 写入失败诊断：目录不可写时给出具体指引
     auth_dir = os.path.dirname(auth_file) or "."
     if not os.access(auth_dir, os.W_OK):
-        print(f"\n❌ 写入失败：目录 {auth_dir} 不可写（权限不足）", file=sys.stderr)
-        print(f"    请执行：chown -R {CONTAINER_UID}:{CONTAINER_UID} ./auths", file=sys.stderr)
-        print(f"    或在容器内登录：docker compose exec -it wb2api bash -c './login.sh'\n", file=sys.stderr)
+        print(f"\n❌ Write failed: directory {auth_dir} is not writable (permission denied)", file=sys.stderr)
+        print(f"    Run: chown -R {CONTAINER_UID}:{CONTAINER_UID} ./auths", file=sys.stderr)
+        print(f"    Or log in inside the container: docker compose exec -it wb2api bash -c './login.sh'\n", file=sys.stderr)
     raise
-print(f"已保存（{os.environ['WB2A_LOGIN_ACTION']}）: {auth_file}")
+print(f"Saved ({os.environ['WB2A_LOGIN_ACTION']}): {auth_file}")
 PYEOF
 
 # ─── 国际版注册激活 + trial 领取（仅 global；token 已落盘，失败只提示不阻断）──────
@@ -251,7 +251,7 @@ try:
     import global_region as gr
 except ImportError as e:
     gr = None
-    print(f"注册地区: 未加载 global_region.py（{e}），跳过完善+trial 步骤")
+    print(f"Registration region: cannot load global_region.py ({e}); skipping region setup and trial")
 
 GLOBAL_BASE = "https://www.workbuddy.ai"
 ACCOUNT_UID = os.environ["WB2A_LOGIN_USER_ID"]
@@ -284,27 +284,27 @@ needs_region = False
 if gr is not None:
     okr, needs, msg = gr.activate_region(TOKEN, ACCOUNT_UID, base=GLOBAL_BASE)
     if okr:
-        print("注册激活: 成功")
+        print("Registration activation: success")
     elif needs:
         needs_region = True
-        print("注册激活: 需完善注册地区")
+        print("Registration activation: region setup required")
     else:
-        print(f"注册激活: {msg}")
+        print(f"Registration activation: {msg}")
 else:
     r = _register_inline()
     if "_net_error" in r:
-        print(f"注册激活: 网络失败（不阻断登录）: {r['_net_error']}")
+        print(f"Registration activation: network failure (login continues): {r['_net_error']}")
     elif r.get("code") == 200:
-        print("注册激活: 成功")
+        print("Registration activation: success")
     else:
-        print(f"注册激活: {r.get('msg', json.dumps(r)[:120])}")
+        print(f"Registration activation: {r.get('msg', json.dumps(r)[:120])}")
 
 # 1b) 需完善地区 → 自动出选项单并提交（无需打开网页）。
 if needs_region and gr is not None:
     try:
         ok, countries, msg = gr.fetch_countries(base=GLOBAL_BASE)
         if not ok:
-            print(f"  拉取地区列表失败: {msg}")
+            print(f"  Cannot fetch region list: {msg}")
         else:
             # 检测当前地区（若已设置，直接复用，不出选项单）。
             _, cur_ios2, _, _ = gr.detect_region(TOKEN, base=GLOBAL_BASE)
@@ -312,30 +312,30 @@ if needs_region and gr is not None:
             if cur_ios2:
                 picked = next((c for c in countries if c["IOS2"] == cur_ios2), None)
                 if picked:
-                    print(f"  检测到当前地区: {picked['IOS2']} {picked['EnName']}，跳过选项单")
+                    print(f"  Detected region: {picked['IOS2']} {picked['EnName']}; skipping menu")
             if picked is None:
                 picked = gr.interactive_menu(countries, cur_ios2,
-                                             title="国际版账号需完善注册地区")
+                                             title="Global account requires a registration region")
             if picked is None:
-                print("  未选择地区，跳过完善（后续可重跑登录完善）")
+                print("  No region selected; skipping setup (run login again to complete it)")
             else:
                 okc, msgc = gr.complete_flow(TOKEN, ACCOUNT_UID, pick=picked,
                                              call_register=False, base=GLOBAL_BASE)
                 if okc:
-                    print(f"  地区已完善: {picked['IOS2']} {picked['EnName']}（register 重新验证通过）")
+                    print(f"  Region configured: {picked['IOS2']} {picked['EnName']} (registration verified)")
                 else:
-                    print(f"  地区完善失败: {msgc}")
+                    print(f"  Region setup failed: {msgc}")
     except Exception as e:
-        print(f"  自动完善地区异常（不阻断登录）: {e}")
+        print(f"  Automatic region setup failed (login continues): {e}")
 
 # 2) trial 领取（幂等）：POST /billing/ide/trial；14051=已领过，不算失败。
 if gr is not None:
     oktr, already, msgtr = gr.trial(TOKEN, base=GLOBAL_BASE)
     if oktr:
-        suffix = "（已领取过）" if already else ""
-        print(f"国际版 trial: 已激活，可以开始对话{suffix}")
+        suffix = " (already claimed)" if already else ""
+        print(f"Global trial: activated; ready to chat{suffix}")
     else:
-        print(f"国际版 trial: {msgtr}（不阻断登录）")
+        print(f"Global trial: {msgtr} (login continues)")
 else:
     headers = {
         "Authorization": "Bearer " + TOKEN,
@@ -359,32 +359,32 @@ else:
         trial = {"_net_error": str(e)}
 
     if "_net_error" in trial:
-        print(f"国际版 trial: 网络失败（不阻断登录）: {trial['_net_error']}")
+        print(f"Global trial: network failure (login continues): {trial['_net_error']}")
     elif trial.get("code") == 0 or "14051" in json.dumps(trial, ensure_ascii=False):
-        print("国际版 trial: 已激活，可以开始对话")
+        print("Global trial: activated; ready to chat")
     else:
-        print(f"国际版 trial: {trial.get('msg', json.dumps(trial)[:150])}")
+        print(f"Global trial: {trial.get('msg', json.dumps(trial)[:150])}")
 PYEOF
 fi
 echo ""
 if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
-    echo "重启 $CONTAINER 加载新账号..."
+    echo "Restarting $CONTAINER to load the new account..."
     docker restart "$CONTAINER" >/dev/null
     sleep 2
     # API_KEY 从 config.json 读取（该变量在脚本中未定义，fallback 仅为占位，不会通过鉴权）
     API_KEY=$(python3 -c "import json; print(json.load(open('config.json')).get('api_key',''))" 2>/dev/null)
     COUNT=$(curl -s http://127.0.0.1:7863/status -H "Authorization: Bearer ${API_KEY:-test_key}" 2>/dev/null | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('accounts',[])))" 2>/dev/null || echo "?")
-    echo "服务已重启，当前账号数: $COUNT"
+    echo "Service restarted; account count: $COUNT"
 else
-    echo "容器 $CONTAINER 未运行，auth 文件已保存，下次启动自动加载"
+    echo "Container $CONTAINER is not running; auth file saved and will load on next startup"
 fi
 
 echo ""
 echo "============================================================"
-echo "  登录完成！"
+echo "  Login complete!"
 echo "  UID: $USER_ID"
 echo "  Realm: $REALM"
-echo "  Nickname: ${NICKNAME:-（未获取到）}"
+echo "  Nickname: ${NICKNAME:-(unavailable)}"
 echo "  Token: ${TOKEN:0:30}..."
-echo "  有效期: $(date -d "@$EXPIRES_AT" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$EXPIRES_AT")"
+echo "  Expires: $(date -d "@$EXPIRES_AT" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$EXPIRES_AT")"
 echo "============================================================"

@@ -138,7 +138,7 @@ func (s *Schedule) validateHours() error {
 func checkHourRange(field, switchKey string, hours []int) error {
 	for _, h := range hours {
 		if h < 0 || h > 23 {
-			return fmt.Errorf("%s: %d 不是合法小时（0-23）；如要关闭该任务请设 schedule.%s=false", field, h, switchKey)
+			return fmt.Errorf("%s: %d is not a valid hour (0-23); disable this task with schedule.%s=false", field, h, switchKey)
 		}
 	}
 	return nil

@@ -174,36 +174,36 @@ func main() {
 	})
 	switch {
 	case !cfg.Schedule.CheckinEnabled:
-		log.Printf("签到已禁用（schedule.checkin_enabled=false）")
+		log.Printf("Check-in disabled (schedule.checkin_enabled=false)")
 	default:
-		log.Printf("签到已启用：%v 点（签到 + 余额查询解冻）", cfg.Schedule.CheckinHours)
+		log.Printf("Check-in enabled at hours %v (check-in and balance recovery)", cfg.Schedule.CheckinHours)
 	}
 	switch {
 	case !cfg.Schedule.TravelEnabled:
-		log.Printf("猫猫旅行已禁用（schedule.travel_enabled=false）")
+		log.Printf("Cat travel disabled (schedule.travel_enabled=false)")
 	default:
-		log.Printf("猫猫旅行已启用：%v 点（独立排程：领养 / 派出 / 领奖）", cfg.Schedule.TravelHours)
+		log.Printf("Cat travel enabled at hours %v (independent adoption / departure / reward schedule)", cfg.Schedule.TravelHours)
 	}
 	switch {
 	case !cfg.Schedule.ActivityEnabled:
-		log.Printf("活跃上报已禁用（schedule.activity_enabled=false）")
+		log.Printf("Activity reporting disabled (schedule.activity_enabled=false)")
 	default:
-		log.Printf("活跃上报已启用：%v 点（每号 %d 条，点亮连登 + 补满领猫对话门槛）", cfg.Schedule.ActivityHours, cfg.Schedule.ActivityReportCount)
+		log.Printf("Activity reporting enabled at hours %v (%d reports per account for streak and adoption prerequisites)", cfg.Schedule.ActivityHours, cfg.Schedule.ActivityReportCount)
 	}
 	if !cfg.Schedule.KeepaliveEnabled {
-		log.Printf("token 保活已禁用（schedule.keepalive_enabled=false）")
+		log.Printf("Token keepalive disabled (schedule.keepalive_enabled=false)")
 	} else {
-		log.Printf("token 保活已启用：%v 点", cfg.Schedule.KeepaliveHours)
+		log.Printf("Token keepalive enabled at hours %v", cfg.Schedule.KeepaliveHours)
 	}
 	if !cfg.Schedule.SchoolEnabled {
-		log.Printf("开学季任务已禁用（schedule.school_enabled=false）")
+		log.Printf("Back-to-school tasks disabled (schedule.school_enabled=false)")
 	} else {
-		log.Printf("开学季任务已启用：%v 点（school_open_day_2026.py ALL --run --yes）", cfg.Schedule.SchoolHours)
+		log.Printf("Back-to-school tasks enabled at hours %v (school_open_day_2026.py ALL --run --yes)", cfg.Schedule.SchoolHours)
 	}
 	if !cfg.Schedule.CatEnabled {
-		log.Printf("夜猫子任务已禁用（schedule.cat_enabled=false）")
+		log.Printf("Night owl tasks disabled (schedule.cat_enabled=false)")
 	} else {
-		log.Printf("夜猫子任务已启用：%v 点（task_runner.py ALL --yes --only black_cat）", cfg.Schedule.CatHours)
+		log.Printf("Night owl tasks enabled at hours %v (task_runner.py ALL --yes --only black_cat)", cfg.Schedule.CatHours)
 	}
 
 	h := server.NewHandler(server.Config{
@@ -254,10 +254,10 @@ func main() {
 	}()
 
 	if cfg.Global.Enabled {
-		log.Printf("global realm 已启用（chat_base=%q billing_base=%q，空=默认 workbuddy.ai）",
+		log.Printf("Global realm enabled (chat_base=%q billing_base=%q; empty uses workbuddy.ai)",
 			cfg.Global.ChatBase, cfg.Global.BillingBase)
 	} else {
-		log.Printf("global realm 已禁用（config global.enabled=false，纯 CN）")
+		log.Printf("Global realm disabled (config global.enabled=false; CN only)")
 	}
 	log.Printf("workbuddy2api listening on %s (api_key=%v)", cfg.Listen, cfg.APIKey != "")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

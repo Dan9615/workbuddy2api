@@ -370,7 +370,7 @@ func TestWatchStackingReproducedByWrapping(t *testing.T) {
 	// 上方，屏幕上出现两份标题。这正是用户截图里的"每刷新一次多一个统计窗口"。
 	n := 0
 	for _, l := range got {
-		if strings.Contains(l, "网关请求统计") {
+		if strings.Contains(l, "Gateway stats") {
 			n++
 		}
 	}

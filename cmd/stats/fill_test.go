@@ -23,7 +23,7 @@ func richRows() ([]modelStat, modelStat) {
 		mkRichModel("cn:deepseek-v4.1-flash", 29, 4, 0, base),
 		mkRichModel("deepseek-v4-pro", 13, 0, 13, testNow.Add(-11*time.Hour).Format(time.RFC3339)),
 	}
-	rows[0].CacheWriteTokens = 1234 // 让"缓存写入"列显形
+	rows[0].CacheWriteTokens = 1234 // 让"Cache write"列显形
 	total := mkRichModel("(all)", 828, 7, 793, testNow.Format(time.RFC3339))
 	total.CacheWriteTokens = 1234
 	return rows, total
@@ -240,18 +240,18 @@ func TestFagoRelativeTime(t *testing.T) {
 		want string
 		why  string
 	}{
-		{at(0), "0s前", "刚刚"},
-		{at(42 * time.Second), "42s前", "秒级"},
-		{at(89 * time.Second), "89s前", "秒级上界"},
-		{at(90 * time.Second), "1m前", "进入分钟档"},
-		{at(17 * time.Minute), "17m前", "分钟级"},
-		{at(89 * time.Minute), "89m前", "分钟级上界"},
-		{at(90 * time.Minute), "1.5h前", "进入小时档"},
-		{at(22 * time.Hour), "22.0h前", "小时级"},
-		{at(47 * time.Hour), "47.0h前", "小时级上界"},
-		{at(48 * time.Hour), "2d前", "进入天档"},
-		{at(72 * time.Hour), "3d前", "天级"},
-		{at(-5 * time.Minute), "0s前", "时钟偏差导致的未来时刻按刚刚处理，不出现负数"},
+		{at(0), "0s ago", "刚刚"},
+		{at(42 * time.Second), "42s ago", "秒级"},
+		{at(89 * time.Second), "89s ago", "秒级上界"},
+		{at(90 * time.Second), "1m ago", "进入分钟档"},
+		{at(17 * time.Minute), "17m ago", "分钟级"},
+		{at(89 * time.Minute), "89m ago", "分钟级上界"},
+		{at(90 * time.Minute), "1.5h ago", "进入小时档"},
+		{at(22 * time.Hour), "22.0h ago", "小时级"},
+		{at(47 * time.Hour), "47.0h ago", "小时级上界"},
+		{at(48 * time.Hour), "2d ago", "进入天档"},
+		{at(72 * time.Hour), "3d ago", "天级"},
+		{at(-5 * time.Minute), "0s ago", "时钟偏差导致的未来时刻按刚刚处理，不出现负数"},
 		{nil, "-", "字段缺失"},
 		{func() *string { s := ""; return &s }(), "-", "空串"},
 		{func() *string { s := "不是时间"; return &s }(), "-", "解析失败"},
@@ -275,7 +275,7 @@ func TestFillColumnsConditional(t *testing.T) {
 	plain := []modelStat{mkModel("a", 10, 1), mkModel("b", 20, 0)}
 	tbl := buildTable(plain, mkModel("(all)", 30, 1), "requests", 200, 0, testNow)
 	joined := strings.Join(tbl, "\n")
-	for _, h := range []string{"流式", "最后活动", "缓存写入"} {
+	for _, h := range []string{"Stream", "Last seen", "Cache write"} {
 		if strings.Contains(joined, h) {
 			t.Errorf("字段全零时不应出现 %q 列:\n%s", h, joined)
 		}
@@ -287,19 +287,19 @@ func TestFillColumnsConditional(t *testing.T) {
 	total.CacheWriteTokens = 0
 	tbl = buildTable(rows, total, "requests", 200, 0, testNow)
 	joined = strings.Join(tbl, "\n")
-	for _, h := range []string{"流式", "最后活动"} {
+	for _, h := range []string{"Stream", "Last seen"} {
 		if !strings.Contains(joined, h) {
 			t.Errorf("有数据时应出现 %q 列:\n%s", h, joined)
 		}
 	}
-	if strings.Contains(joined, "缓存写入") {
+	if strings.Contains(joined, "Cache write") {
 		t.Errorf("缓存写入全零时应隐藏（当前网关未采集）:\n%s", joined)
 	}
 
 	// 缓存写入有值时出现。
 	rows[0].CacheWriteTokens = 999
 	tbl = buildTable(rows, total, "requests", 200, 0, testNow)
-	if !strings.Contains(strings.Join(tbl, "\n"), "缓存写入") {
+	if !strings.Contains(strings.Join(tbl, "\n"), "Cache write") {
 		t.Errorf("缓存写入有值时应出现:\n%s", strings.Join(tbl, "\n"))
 	}
 }
@@ -312,7 +312,7 @@ func TestFillColumnsDropFirst(t *testing.T) {
 
 	// 宽窗口：三列都在。
 	wide := strings.Join(buildTable(rows, total, "requests", 200, 0, testNow), "\n")
-	for _, h := range []string{"流式", "最后活动", "缓存写入"} {
+	for _, h := range []string{"Stream", "Last seen", "Cache write"} {
 		if !strings.Contains(wide, h) {
 			t.Fatalf("200 列下应含 %q:\n%s", h, wide)
 		}
@@ -321,7 +321,7 @@ func TestFillColumnsDropFirst(t *testing.T) {
 	// 逐步收窄：填充性列必须先消失，而"扣费/请求/失败"必须始终在场。
 	for _, w := range []int{170, 150, 130, 110, 96, 80, 60} {
 		joined := strings.Join(buildTable(rows, total, "requests", w, 0, testNow), "\n")
-		for _, must := range []string{"模型", "请求", "失败", "扣费"} {
+		for _, must := range []string{"Model", "Reqs", "Fail", "Cost"} {
 			if !strings.Contains(joined, must) {
 				t.Errorf("w=%d 丢了核心列 %q:\n%s", w, must, joined)
 			}

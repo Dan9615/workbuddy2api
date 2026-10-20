@@ -52,14 +52,14 @@ func (p *Pool) RestoreFromSnapshot() {
 	raw, ok := store.LoadState()
 	if !ok {
 		if localErr == nil {
-			log.Printf("[pool] 恢复来源=本地 state.json（无 Redis 快照）")
+			log.Printf("[pool] restored from local state.json (no Redis snapshot)")
 		}
 		return
 	}
 	var snap snapshot
 	if json.Unmarshal(raw, &snap) != nil || snap.SavedAt.IsZero() {
 		// 快照无 savedAt：无法比较新旧，本地优先。
-		log.Printf("[pool] 恢复来源=本地 state.json（Redis 快照无 saved_at）")
+		log.Printf("[pool] restored from local state.json (Redis snapshot has no saved_at)")
 		return
 	}
 	if localErr != nil {
@@ -70,18 +70,18 @@ func (p *Pool) RestoreFromSnapshot() {
 		// 从未发生过的比较，把排障引向根本不存在的本地文件；随后 SyncToDir 只增删不入值，
 		// 全池运行态（credits/冷却/熔断计数/usedSeq/lastUsed）被清零。
 		p.adoptSnapshot(snap)
-		log.Printf("[pool] 恢复来源=Redis 快照 (saved_at=%s)（本地 state.json 不可用: %v）",
+		log.Printf("[pool] restored from Redis snapshot (saved_at=%s; local state.json unavailable: %v)",
 			snap.SavedAt.Format(time.RFC3339), localErr)
 		return
 	}
 	if !localInfo.ModTime().After(snap.SavedAt) {
 		// 快照不早于本地 → 采用快照。
 		p.adoptSnapshot(snap)
-		log.Printf("[pool] 恢复来源=Redis 快照 (saved_at=%s)", snap.SavedAt.Format(time.RFC3339))
+		log.Printf("[pool] restored from Redis snapshot (saved_at=%s)", snap.SavedAt.Format(time.RFC3339))
 		return
 	}
 	// 走到这里必然是「本地存在且严格新于快照」，日志结论属实。
-	log.Printf("[pool] 恢复来源=本地 state.json（较新于 Redis 快照 %s）", snap.SavedAt.Format(time.RFC3339))
+	log.Printf("[pool] restored from local state.json (newer than Redis snapshot %s)", snap.SavedAt.Format(time.RFC3339))
 }
 
 // startFlusher 启动后台周期落盘 goroutine（每 flushInterval 检查 dirty 标志）。
@@ -282,7 +282,7 @@ func (p *Pool) saveLocked() {
 	}
 	if p.persistFails > 0 {
 		// 从连续失败中恢复：打一条恢复日志，避免"错误打完却无人知道已恢复"。
-		log.Printf("[pool] state.json 落盘恢复（此前连续失败 %d 次）", p.persistFails)
+		log.Printf("[pool] state.json persistence recovered (after %d consecutive failures)", p.persistFails)
 		p.persistFails = 0
 	}
 	// 同步镜像一份快照到 Redis（fire-and-forget），与本地 state.json 并存作恢复备份。
@@ -301,10 +301,10 @@ func (p *Pool) saveLocked() {
 // "失败仅打日志、不向上抛"范式对齐，但落盘失败对运维是盲区，故多一层节流（notification）。
 func (p *Pool) notePersistFail(err error) {
 	if p.persistFails == 0 {
-		log.Printf("WARN: [pool] state.json 落盘失败（首次详报）: path=%s err=%v %s",
+		log.Printf("WARN: [pool] cannot persist state.json (first failure): path=%s err=%v %s",
 			p.stateFp, err, persistFailDiag(p.stateFp))
 	} else if p.persistFails%persistLogEvery == 0 {
-		log.Printf("ERR: [pool] state.json 连续落盘失败 %d 次: path=%s err=%v",
+		log.Printf("ERR: [pool] %d consecutive state.json persistence failures: path=%s err=%v",
 			p.persistFails, p.stateFp, err)
 	}
 	p.persistFails++
@@ -319,7 +319,7 @@ func persistFailDiag(stateFp string) string {
 	info, statErr := os.Stat(dir)
 	switch {
 	case statErr != nil:
-		fmt.Fprintf(&b, "stat_dir=%s err=%v（目录不存在或不可访问）", dir, statErr)
+		fmt.Fprintf(&b, "stat_dir=%s err=%v (directory missing or inaccessible)", dir, statErr)
 	case info == nil:
 		fmt.Fprintf(&b, "stat_dir=%s info=nil", dir)
 	default:
@@ -330,7 +330,7 @@ func persistFailDiag(stateFp string) string {
 	if uid, gid := os.Getuid(), os.Getgid(); uid >= 0 && gid >= 0 {
 		fmt.Fprintf(&b, " proc_uid=%d proc_gid=%d", uid, gid)
 	}
-	b.WriteString(" fix=chown -R 10001:10001 ./data 或改用 named volume（见 docker-compose.yml）")
+	b.WriteString(" fix=chown -R 10001:10001 ./data or use a named volume (see docker-compose.yml)")
 	return b.String()
 }
 

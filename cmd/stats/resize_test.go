@@ -154,7 +154,7 @@ func TestResizeWithoutResetWouldStack(t *testing.T) {
 	got := sc.nonEmpty()
 	n := 0
 	for _, l := range got {
-		if strings.Contains(l, "网关请求统计") {
+		if strings.Contains(l, "Gateway stats") {
 			n++
 		}
 	}

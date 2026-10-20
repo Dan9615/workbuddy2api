@@ -86,7 +86,7 @@ func main() {
 		}
 	case "disable", "enable", "revive":
 		if len(args) < 2 || strings.TrimSpace(args[1]) == "" {
-			fmt.Fprintf(os.Stderr, "acct: %s 需要一个 uid\n", op)
+			fmt.Fprintf(os.Stderr, "acct: %s requires a uid\n", op)
 			os.Exit(2)
 		}
 		uid := strings.TrimSpace(args[1])
@@ -98,27 +98,27 @@ func main() {
 			fatalf("%v", err)
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "acct: 未知子命令 %q\n", op)
+		fmt.Fprintf(os.Stderr, "acct: unknown subcommand %q\n", op)
 		usage()
 		os.Exit(2)
 	}
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `acct — 账号运维工具
+	fmt.Fprint(os.Stderr, `acct — Account management
 
-用法:
-  acct list                    列出账号与状态（含 manual_disabled / disabled 双位）
-  acct disable <uid> [reason]  临时停用：摘出选号池，但仍留在池里
-  acct enable  <uid>           解除手动停用
-  acct revive  <uid>           解除系统自动禁用
+Usage:
+  acct list                    List accounts and both disable flags
+  acct disable <uid> [reason]  Remove an account from chat selection; keep it in the pool
+  acct enable  <uid>           Clear manual disabling
+  acct revive  <uid>           Clear automatic disabling
 
-选项:
-  -config <path>  配置路径（默认 config.json，读 listen 与 api_key）
-  -server <url>   直接指定网关地址，如 http://127.0.0.1:7863
+Options:
+  -config <path>  Config path (default config.json; reads listen and api_key)
+  -server <url>   Gateway URL override, e.g. http://127.0.0.1:7863
 
-注意：enable 只解手动位。若账号同时被系统自动禁用（disabled），
-需要额外执行 revive 才能回到选号池。
+Note: enable only clears manual disabling. If the account is also automatically
+disabled, run revive before it can be selected again.
 `)
 }
 
@@ -131,7 +131,7 @@ func resolveTarget(cfgPath, serverOverride string) (string, string, error) {
 			return "", "", fmt.Errorf("parse %s: %w", cfgPath, err)
 		}
 	} else if serverOverride == "" {
-		return "", "", fmt.Errorf("读配置失败（%v）；可用 -server 直接指定网关地址", err)
+		return "", "", fmt.Errorf("cannot read config (%v); use -server to specify the gateway URL", err)
 	}
 
 	base := strings.TrimSpace(serverOverride)
@@ -195,7 +195,7 @@ func httpDo(base, apiKey, method, path string, body []byte) (int, []byte, error)
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, nil, fmt.Errorf("请求网关失败（%v）；确认服务在运行、-server/-config 指向正确", err)
+		return 0, nil, fmt.Errorf("gateway request failed (%v); check that the service is running and -server/-config is correct", err)
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
@@ -209,16 +209,16 @@ func listAccounts(base, apiKey string) error {
 		return err
 	}
 	if code != http.StatusOK {
-		return fmt.Errorf("GET /status 返回 %d: %s", code, firstLine(raw))
+		return fmt.Errorf("GET /status returned %d: %s", code, firstLine(raw))
 	}
 	var body struct {
 		Accounts []accountStatus `json:"accounts"`
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
-		return fmt.Errorf("解析 /status: %w", err)
+		return fmt.Errorf("parse /status: %w", err)
 	}
 	if len(body.Accounts) == 0 {
-		fmt.Println("（池里没有账号）")
+		fmt.Println("(no accounts in the pool)")
 		return nil
 	}
 	sort.Slice(body.Accounts, func(i, j int) bool {
@@ -236,24 +236,24 @@ func listAccounts(base, apiKey string) error {
 func stateLabel(a accountStatus) string {
 	var parts []string
 	if a.ManualDisabled {
-		s := "手动停用"
+		s := "manually disabled"
 		if a.ManualReason != "" {
 			s += "(" + a.ManualReason + ")"
 		}
 		parts = append(parts, s)
 	}
 	if a.Disabled {
-		s := "自动禁用"
+		s := "automatically disabled"
 		if a.DisabledReason != "" {
 			s += "(" + a.DisabledReason + ")"
 		}
 		parts = append(parts, s)
 	}
 	if a.Cooling {
-		parts = append(parts, "冷却中")
+		parts = append(parts, "cooling down")
 	}
 	if len(parts) == 0 {
-		return "正常"
+		return "healthy"
 	}
 	return strings.Join(parts, " + ")
 }
@@ -273,9 +273,9 @@ func doAdmin(base, apiKey, op, uid, reason string) error {
 	switch code {
 	case http.StatusNotFound:
 		// 两种 404：admin 开关没开 / uid 不存在。都不该靠猜，把原文给出来。
-		return fmt.Errorf("404：%s（可能是 admin.enabled 未开启，或该 uid 不在池里）", firstLine(raw))
+		return fmt.Errorf("404: %s (admin.enabled may be false, or the uid is not in the pool)", firstLine(raw))
 	case http.StatusUnauthorized:
-		return fmt.Errorf("401：api_key 不对（检查 config.json 的 api_key）")
+		return fmt.Errorf("401: invalid api_key (check api_key in config.json)")
 	case http.StatusOK:
 	default:
 		return fmt.Errorf("%d: %s", code, firstLine(raw))
@@ -283,11 +283,11 @@ func doAdmin(base, apiKey, op, uid, reason string) error {
 
 	var st adminState
 	if err := json.Unmarshal(raw, &st); err != nil {
-		return fmt.Errorf("解析响应: %w", err)
+		return fmt.Errorf("parse response: %w", err)
 	}
-	verb := map[string]string{"disable": "已停用", "enable": "已解除停用", "revive": "已复活"}[op]
+	verb := map[string]string{"disable": "disabled", "enable": "enabled", "revive": "revived"}[op]
 	if !st.Changed {
-		verb = map[string]string{"disable": "本就是停用态", "enable": "本就是启用态", "revive": "本就未被自动禁用"}[op]
+		verb = map[string]string{"disable": "already disabled", "enable": "already enabled", "revive": "already free of automatic disabling"}[op]
 	}
 	fmt.Printf("%s %s: %s\n", verb, st.UID, stateLabel(accountStatus{
 		UID: st.UID, ManualDisabled: st.ManualDisabled, ManualReason: st.ManualReason,
@@ -295,10 +295,10 @@ func doAdmin(base, apiKey, op, uid, reason string) error {
 	}))
 	// 提示遗留的另一个位：enable 不解除自动禁用，反之亦然。
 	if op == "enable" && st.Disabled {
-		fmt.Println("提示：该账号仍被系统自动禁用，要回到选号池还需执行 acct revive " + st.UID)
+		fmt.Println("This account is still automatically disabled; restore selection with acct revive " + st.UID)
 	}
 	if op == "revive" && st.ManualDisabled {
-		fmt.Println("提示：该账号仍处于手动停用，要回到选号池还需执行 acct enable " + st.UID)
+		fmt.Println("This account is still manually disabled; restore selection with acct enable " + st.UID)
 	}
 	return nil
 }

@@ -32,10 +32,10 @@ if [[ ! -x "$TRIAL_BIN" ]]; then
     TRIAL_BIN="$CACHE_DIR/trial_bin"
     if [[ ! -x "$TRIAL_BIN" ]] || find . -name '*.go' -newer "$TRIAL_BIN" -print -quit | grep -q .; then
         if ! command -v go >/dev/null 2>&1; then
-            echo "需要 go 构建 trial_bin（或镜像内置 /app/trial_bin）" >&2
+            echo "Go is required to build trial_bin (or use an image with /app/trial_bin)" >&2
             exit 1
         fi
-        echo "构建 trial.." >&2
+        echo "Building trial..." >&2
         go build -o "$TRIAL_BIN" ./cmd/trial
     fi
 fi

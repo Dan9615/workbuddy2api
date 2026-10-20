@@ -155,7 +155,7 @@ def trial(token, base=None):
         if body.get("code") == 0:
             return True, False, "ok"
         if "14051" in json.dumps(body, ensure_ascii=False):
-            return True, True, "已领取"
+            return True, True, "already claimed"
         return False, False, body.get("msg", json.dumps(body, ensure_ascii=False)[:150])
     except urllib.error.HTTPError as e:
         raw = e.read().decode("utf-8", "replace") or "{}"
@@ -165,7 +165,7 @@ def trial(token, base=None):
             # 非 JSON 4xx（网关/WAF 的纯文本页）：按 idempotent 文本与 HTTP 码处理。
             return False, "14051" in raw, f"http {e.code}: {raw[:120]}"
         if "14051" in json.dumps(body, ensure_ascii=False):
-            return True, True, "已领取"
+            return True, True, "already claimed"
         return False, False, body.get("msg", f"http {e.code}")
     except Exception as e:
         return False, False, str(e)
@@ -183,18 +183,18 @@ def complete_flow(token, uid, pick=None, call_register=True, base=None):
         if ok:
             return True, "register success"
         if not needs:
-            return False, f"register 失败: {msg}"
+            return False, f"register failed: {msg}"
         # needs region → 需提交
     if pick is None:
-        return False, "需完善注册地区，但未提供选择"
+        return False, "Registration region is required, but none was selected"
     sok, smsg = submit_region(token, pick, base)
     if not sok:
-        return False, f"提交地区失败: {smsg}"
+        return False, f"Cannot submit region: {smsg}"
     # 重新 register 验证
     ok2, needs2, msg2 = activate_region(token, uid, base)
     if not ok2:
-        return False, f"提交地区后 register 仍失败: {msg2} (needs_region={needs2})"
-    return True, "地区已完善，register 成功"
+        return False, f"Registration still failed after region submission: {msg2} (needs_region={needs2})"
+    return True, "Region configured; registration succeeded"
 
 
 def _read_line(prompt):
@@ -210,24 +210,24 @@ def _read_line(prompt):
         return ""
 
 
-def interactive_menu(countries, detected_ios2="", title="国际版账号需完善注册地区"):
+def interactive_menu(countries, detected_ios2="", title="Global account requires a registration region"):
     """终端编号菜单。返回选中的国家 dict；取消/无输入返回 None。"""
     if not countries:
-        print("（无可选地区）")
+        print("(no available regions)")
         return None
-    print(f"\n{title}（请输入编号选择注册地区）：")
+    print(f"\n{title}: enter a number to select the registration region:")
     for i, c in enumerate(countries, 1):
-        mark = "  ◀ 检测到当前地区" if c["IOS2"] == detected_ios2 else ""
+        mark = "  ◀ Detected current region" if c["IOS2"] == detected_ios2 else ""
         print(f"{i:>3}) {c['IOS2']:<4} {c['Code']:<8} {c['EnName']}{mark}")
     try:
-        raw = _read_line("\n请选择注册地区编号（回车取消）: ")
+        raw = _read_line("\nSelect a registration region number (Enter to cancel): ")
         raw = raw.strip()
         if not raw:
             return None
         idx = int(raw)
         if 1 <= idx <= len(countries):
             return countries[idx - 1]
-        print(f"无效编号 {raw}")
+        print(f"Invalid selection {raw}")
         return None
     except (ValueError, EOFError):
         return None
@@ -236,24 +236,24 @@ def interactive_menu(countries, detected_ios2="", title="国际版账号需完�
 def main(argv=None):
     """独立 CLI（供手测/调试）：WORKBUDDY_TOKEN env 传入 token，避免 argv 泄露。"""
     import argparse
-    p = argparse.ArgumentParser(description="国际版注册地区自动完善（调试）")
+    p = argparse.ArgumentParser(description="Global registration region setup (debug)")
     p.add_argument("--uid", required=True)
-    p.add_argument("--auto", help="直接指定 IOS2（如 SG），跳过交互菜单")
+    p.add_argument("--auto", help="Specify IOS2 directly (e.g. SG) to skip the menu")
     a = p.parse_args(argv)
     token = os.environ.get("WORKBUDDY_TOKEN") or ""
     if not token:
-        print("需要 WORKBUDDY_TOKEN 环境变量", file=sys.stderr)
+        print("WORKBUDDY_TOKEN environment variable is required", file=sys.stderr)
         return 1
     ok, needs, msg = activate_region(token, a.uid)
     if ok:
-        print("register: 成功")
+        print("register: success")
         return 0
     if not needs:
-        print(f"register: 失败 {msg}")
+        print(f"register: failed {msg}")
         return 1
     okc, countries, msgc = fetch_countries()
     if not okc:
-        print(f"拉取地区列表失败: {msgc}")
+        print(f"Cannot fetch region list: {msgc}")
         return 1
     pick = None
     if a.auto:
@@ -263,13 +263,13 @@ def main(argv=None):
             _, allc, _ = fetch_countries(intl_only=False)
             pick = next((c for c in allc if c["IOS2"] == a.auto), None)
         if pick is None:
-            print(f"未找到 {a.auto}")
+            print(f"Not found: {a.auto}")
             return 1
     else:
         _, ios2, _, _ = detect_region(token)
         pick = interactive_menu(countries, ios2)
         if pick is None:
-            print("已取消")
+            print("Cancelled")
             return 1
     ok, msg = complete_flow(token, a.uid, pick=pick, call_register=True)
     print("complete:", msg)

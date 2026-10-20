@@ -183,7 +183,7 @@ func resolveRealmInput(input string) (string, bool) {
 // promptRealm 交互式选域：向 out 打印选项提示（out 接 stderr，stdout 留给 realm 本身），
 // 从 in 读一行，返回归一化 realm。非法输入警告后回落 cn；EOF（非交互/管道）回落 cn。
 func promptRealm(in io.Reader, out io.Writer) string {
-	fmt.Fprintln(out, "选择登录版本: 1) 国内版(cn) 2) 国际版(global) [默认 1/cn]: ")
+	fmt.Fprintln(out, "Select login realm: 1) China (cn) 2) Global (global) [default 1/cn]: ")
 	line, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && line == "" {
 		// EOF/非交互 → 回落默认 cn
@@ -192,7 +192,7 @@ func promptRealm(in io.Reader, out io.Writer) string {
 	if realm, ok := resolveRealmInput(line); ok {
 		return realm
 	}
-	fmt.Fprintln(out, "无效选择，默认国内版 cn")
+	fmt.Fprintln(out, "Invalid selection; defaulting to China (cn)")
 	return realmCN
 }
 
@@ -200,7 +200,7 @@ func promptRealm(in io.Reader, out io.Writer) string {
 // state 无 realm（旧文件）放行；非空且不一致 → error。
 func validateRealmMatch(stateRealm, cliRealm string) error {
 	if stateRealm != "" && stateRealm != cliRealm {
-		return fmt.Errorf("realm mismatch: state file realm=%q, command --realm=%q（url 与 poll 需同一 realm）", stateRealm, cliRealm)
+		return fmt.Errorf("realm mismatch: state file realm=%q, command --realm=%q (url and poll must use the same realm)", stateRealm, cliRealm)
 	}
 	return nil
 }
@@ -234,7 +234,7 @@ func runURL(base, origin, realm, statePath string, client *http.Client, out io.W
 func runPoll(base, origin, realm, statePath string, client *http.Client, out io.Writer) {
 	raw, err := os.ReadFile(statePath)
 	if err != nil {
-		fatal("read state: %v (先跑 login url)", err)
+		fatal("read state: %v (run login url first)", err)
 	}
 	var ls loginState
 	if err := json.Unmarshal(raw, &ls); err != nil {
@@ -252,7 +252,7 @@ func runPoll(base, origin, realm, statePath string, client *http.Client, out io.
 		if status == 0 || status >= 500 {
 			fatal("token endpoint error: %v", errTok)
 		}
-		fatal("登录未完成（waiting for login）。请确认已在浏览器完成登录再按 y")
+		fatal("Waiting for login. Complete login in your browser before pressing y")
 	}
 	var tok struct {
 		AccessToken  string `json:"accessToken"`
@@ -261,7 +261,7 @@ func runPoll(base, origin, realm, statePath string, client *http.Client, out io.
 		Domain       string `json:"domain"`
 	}
 	if err := json.Unmarshal(tokRaw, &tok); err != nil || tok.AccessToken == "" {
-		fatal("登录未完成（waiting for login）。请确认已在浏览器完成登录再按 y")
+		fatal("Waiting for login. Complete login in your browser before pressing y")
 	}
 	// login/account 拿 uid/nickname（带 Bearer）
 	var acct struct {

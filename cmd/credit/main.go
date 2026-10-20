@@ -145,10 +145,10 @@ func printPretty(accounts []accountResult, totalRemain, totalUsed, totalSize int
 	if totalSize > 0 {
 		pct = totalRemain * 100 / totalSize
 	}
-	fmt.Printf("📊 WorkBuddy 积分日报\n")
-	fmt.Printf("账号: %d/%d\n", withBalance, len(accounts))
-	fmt.Printf("总计: %d/%d\n", totalRemain, totalSize)
-	fmt.Printf("剩余: %d%%\n", pct)
+	fmt.Printf("📊 WorkBuddy credit report\n")
+	fmt.Printf("Accounts: %d/%d\n", withBalance, len(accounts))
+	fmt.Printf("Total: %d/%d\n", totalRemain, totalSize)
+	fmt.Printf("Remaining: %d%%\n", pct)
 	for _, f := range failed {
 		fmt.Printf("⚠️ %s\n", f)
 	}
