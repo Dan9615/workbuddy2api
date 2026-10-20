@@ -52,7 +52,7 @@ func TestTableDropsColumnsBeforeWrapping(t *testing.T) {
 	rows, total := multiRows()
 
 	wide := strings.Join(buildTable(rows, total, "requests", 200, 0, testNow), "\n")
-	for _, h := range []string{"缓存命中", "输入/输出", "吞吐", "耗时", "首字", "扣费", "请求", "失败"} {
+	for _, h := range []string{"Cache hit", "In/Out", "Tokens/s", "Latency", "TTFB", "Cost", "Reqs", "Fail"} {
 		if !strings.Contains(wide, h) {
 			t.Errorf("宽窗口应含列 %q:\n%s", h, wide)
 		}
@@ -72,7 +72,7 @@ func TestTableDropsColumnsBeforeWrapping(t *testing.T) {
 			sawFewer = true
 		}
 		prevCols = cols
-		for _, must := range []string{"模型", "请求", "失败", "扣费"} {
+		for _, must := range []string{"Model", "Reqs", "Fail", "Cost"} {
 			if !strings.Contains(joined, must) {
 				t.Errorf("w=%d 丢了必要列 %q:\n%s", w, must, joined)
 			}
@@ -127,14 +127,14 @@ func TestTableFoldsRowsWhenHeightLimited(t *testing.T) {
 		t.Errorf("行数 = %d 超出预算 8:\n%s", len(tbl), strings.Join(tbl, "\n"))
 	}
 	joined := strings.Join(tbl, "\n")
-	if !strings.Contains(joined, "另有") || !strings.Contains(joined, "未显示") {
+	if !strings.Contains(joined, "more models") || !strings.Contains(joined, "hidden") {
 		t.Errorf("被裁剪时应给出折叠提示:\n%s", joined)
 	}
-	if !strings.Contains(joined, "合计") {
+	if !strings.Contains(joined, "Total") {
 		t.Errorf("合计行应保留:\n%s", joined)
 	}
 	// 不限行数时不得出现折叠提示。
-	if full := strings.Join(buildTable(rows, total, "requests", 200, 0, testNow), "\n"); strings.Contains(full, "另有") {
+	if full := strings.Join(buildTable(rows, total, "requests", 200, 0, testNow), "\n"); strings.Contains(full, "more models") {
 		t.Errorf("不限行数时不应折叠:\n%s", full)
 	}
 }
@@ -191,7 +191,7 @@ func TestFrameNarrowerThanMinimumStillHonest(t *testing.T) {
 	lay := layout{width: 20, height: 40}
 	frame := buildFrame(st, "requests", nil, lay)
 	joined := strings.Join(frame, "\n")
-	for _, must := range []string{"网关请求统计", "模型", "请求"} {
+	for _, must := range []string{"Gateway stats", "Model", "Reqs"} {
 		if !strings.Contains(joined, must) {
 			t.Errorf("窄窗口下丢了关键内容 %q:\n%s", must, joined)
 		}
@@ -205,12 +205,12 @@ func TestFrameNarrowerThanMinimumStillHonest(t *testing.T) {
 // TestFitLineTruncates 非表格行（标题/尾注）同样受宽度约束 ——
 // 它们超宽一样会折行并破坏光标上移量。
 func TestFitLineTruncates(t *testing.T) {
-	long := "📈 网关请求统计 · 窗口 23h39m（自 09-14 20:43）这是一段很长的补充说明文字"
+	long := "📈 Gateway stats · Window 23h39m (since 09-14 20:43) with additional context"
 	got := fitLine(long, 20)
 	if displayWidth(got) > 20 {
 		t.Errorf("fitLine 超宽: %d 列, %q", displayWidth(got), got)
 	}
-	if !strings.Contains(got, "网关请求统计") {
+	if !strings.Contains(got, "Gateway stats") {
 		t.Errorf("截断应保留开头信息，得到 %q", got)
 	}
 	if got := fitLine(long, 0); got != long {

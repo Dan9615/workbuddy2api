@@ -274,7 +274,7 @@ func ResetMetrics() {
 // logMetricsCapWarn 容量超限告警（独立函数便于测试替换/断言，也避免 import log 污染
 // 主体逻辑的阅读）。
 func logMetricsCapWarn(model string) {
-	log.Printf("WARN: [metrics] 模型键达上限 %d，丢弃新键 model=%q（异常模型名？）", metricsCap, model)
+	log.Printf("WARN: [metrics] model key limit %d reached; dropping new key model=%q (unexpected model name?)", metricsCap, model)
 }
 
 // enrichCredits 把上游积分倍率原文合入 stats 快照（/v1/stats 数据展示侧增强）。

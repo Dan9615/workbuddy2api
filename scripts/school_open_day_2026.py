@@ -72,13 +72,13 @@ DESKTOP_UA = "WorkBuddy/5.5.6 WorkBuddy/5.5.6 CLI/2.137.1"
 #   report  /v2/report 事件上报点亮（mini chat / 桌面指纹 6 连 / 专家事件）
 # 未在表内（服务端新增任务）保守按 unknown 跳过。
 KNOWN_TASKS = {
-    "task_student_verify": {"mode": "manual",  "note": "微信学生认证（人工，不碰）"},
-    "share_invite":        {"mode": "share",   "note": "分享活动给好友；share-complete 点亮"},
-    "chat_3_times":        {"mode": "report",  "note": "与 AI 对话 3 次；mini chat_request_send+activityId 点亮",
+    "task_student_verify": {"mode": "manual",  "note": "WeChat student verification (manual)"},
+    "share_invite":        {"mode": "share",   "note": "Share campaign with friends; complete via share-complete"},
+    "chat_3_times":        {"mode": "report",  "note": "Chat with AI 3 times; mini chat_request_send with activityId",
                             "report_kind": "mini_chat"},
-    "desktop_chat_1_time": {"mode": "report",  "note": "桌面端对话 1 次；桌面指纹 6 连+activityId 点亮",
+    "desktop_chat_1_time": {"mode": "report",  "note": "One desktop conversation; six desktop events with activityId",
                             "report_kind": "desktop_seq"},
-    "expert_use":          {"mode": "report",  "note": "召唤开学季专家并对话；BackToSchool 分类专家 + expert_actual_use 点亮",
+    "expert_use":          {"mode": "report",  "note": "Chat with a BackToSchool expert; complete via expert_actual_use",
                             "report_kind": "expert"},
 }
 
@@ -159,13 +159,13 @@ def request_retry(token, method, url, body=None, headers=None, retries=3, gap=1.
             st, r = _request(token, method, url, body, headers)
         except TransientError as e:
             last = e
-            print(f"  [warn] 网络错误重试 {i}/{retries}: {e}")
+            print(f"  [warn] network error; retry {i}/{retries}: {e}")
             if i < retries:
                 time.sleep(gap * i)
             continue
         if 500 <= st < 600 and i < retries:
             last = TransientError(f"http {st}")
-            print(f"  [warn] 5xx={st} 重试 {i}/{retries}")
+            print(f"  [warn] 5xx={st} retry {i}/{retries}")
             time.sleep(gap * i)
             continue
         return st, r
@@ -179,19 +179,19 @@ def _interpret_failure(st, r):
     msg = (r.get("message") or r.get("msg") or (r.get("raw") if r else "") or "") \
         if isinstance(r, dict) else str(r)
     if st == 401 or code in ("401", 401, "40100", 40100):
-        return f"401/40100 未绑微信或 token 失效（小程序会静默刷新，本脚本不刷新）", True
+        return f"401/40100 WeChat not linked or token expired (the miniprogram refreshes silently; this script does not)", True
     if st == 403:
         return "403 forbidden", True
     if st == 404:
-        return "404 路由不存在", False
+        return "404 route not found", False
     if code in ("41000", 41000):
-        return "41000 活动未开始或已结束", False
+        return "41000 campaign not started or already ended", False
     if code in ("40901", 40901):
-        return "40901 任务暂不可领取（未完成或已领）", False
+        return "40901 task not claimable (incomplete or already claimed)", False
     if code in ("83400", 83400):
-        return "83400 验证码已过期", False
+        return "83400 verification code expired", False
     if code in ("50300", 50300):
-        return "50300 学生认证服务暂不可用", False
+        return "50300 student verification service unavailable", False
     return f"http={st} code={code} {str(msg)[:120]}", False
 
 
@@ -224,7 +224,7 @@ def list_account(auth, stats):
     try:
         tasks, in_period = fetch_school_tasks(auth["token"])
     except (AuthError, RuntimeError) as e:
-        print(f"[school2026] {uid8} school/tasks 拉取失败: {e}")
+        print(f"[school2026] {uid8} school/tasks fetch failed: {e}")
         stats["fail"] += 1
         tasks, in_period = [], False
 
@@ -234,7 +234,7 @@ def list_account(auth, stats):
         status = t.get("status") or "?"
         prog = t.get("progress") or 0
         target = t.get("target_count") or 1
-        kinds = {"single": "单次", "recurring": "每日"}.get(t.get("task_type"), t.get("task_type"))
+        kinds = {"single": "one-time", "recurring": "daily"}.get(t.get("task_type"), t.get("task_type"))
         spec = KNOWN_TASKS.get(code, {})
         mode = spec.get("mode", "unknown")
         reward = t.get("reward_credit") or 0
@@ -247,17 +247,17 @@ def list_account(auth, stats):
         if spec.get("note"):
             print(f"      note: {spec['note']}")
     if not tasks:
-        print("  (无任务 / 未登录或活动未开启)")
+        print("  (no tasks / not logged in or campaign inactive)")
 
     for which in ("freshman", "teacher"):
         try:
             d = fetch_profile(auth["token"], which)
         except (AuthError, RuntimeError) as e:
-            print(f"[school2026] {uid8} {which}/profile 拉取失败: {e}")
+            print(f"[school2026] {uid8} {which}/profile fetch failed: {e}")
             stats["fail"] += 1
             continue
         if d is None:
-            print(f"[school2026] {uid8} {which}/profile -> 空")
+            print(f"[school2026] {uid8} {which}/profile -> empty")
             continue
         print(f"[school2026] {uid8} {which}/profile claimed={d.get('claimed')} "
               f"enabled={d.get('enabled')}")
@@ -381,7 +381,7 @@ def fetch_school_expert(token):
             pf = (_pf.get("zh") if isinstance(_pf, dict) else _pf) or ""
             return eid, dn, pf
     except (AuthError, RuntimeError) as e:
-        print(f"  [warn] 拉取 BackToSchool 专家失败，回落已知专家: {e}")
+        print(f"  [warn] cannot fetch BackToSchool experts; using known experts: {e}")
     for eid, info in SCHOOL_EXPERT_FALLBACK.items():
         return eid, info["name"], info["title"]
     raise RuntimeError("无可用开学季专家")
@@ -554,11 +554,11 @@ def run_account(auth, opts, stats):
     try:
         tasks, in_period = fetch_school_tasks(auth["token"])
     except (AuthError, RuntimeError) as e:
-        print(f"[school2026] {uid8} run 拉取任务失败: {e}")
+        print(f"[school2026] {uid8} run cannot fetch tasks: {e}")
         stats["fail"] += 1
         return
     if not in_period:
-        print(f"[school2026] {uid8} 活动非进行期（in_period=false），跳过")
+        print(f"[school2026] {uid8} campaign inactive (in_period=false); skipping")
         return
 
     by_code = {t.get("task_code"): t for t in tasks}
@@ -579,15 +579,15 @@ def run_account(auth, opts, stats):
         if not t.get("task_code"):
             continue
         if status in ("completed", "claimed"):
-            print(f"[school2026] {uid8} {code}: {status} 已完成/已领，跳过")
+            print(f"[school2026] {uid8} {code}: {status} already completed/claimed; skipping")
             stats["already"] += 1
             continue
         if mode == "manual":
-            print(f"[school2026] {uid8} {code}: {status} -> 人工环节（{spec.get('note')}），跳过")
+            print(f"[school2026] {uid8} {code}: {status} -> manual step ({spec.get('note')}); skipping")
             stats["skip"] += 1
         elif mode in ("share", "report"):
             if not opts.yes:
-                print(f"[school2026] {uid8} {code}: {status} -> {mode} 动作（dry-run 不写）")
+                print(f"[school2026] {uid8} {code}: {status} -> {mode} action (no writes in dry-run)")
                 stats["pending"] += 1
                 continue
             # 1) pending -> viewed 激活（接单，H5 行为）
@@ -595,10 +595,10 @@ def run_account(auth, opts, stats):
                 try:
                     post_viewed(auth["token"], code)
                 except (AuthError, RuntimeError) as e:
-                    print(f"[school2026] {uid8} {code}: viewed 激活失败: {e}")
+                    print(f"[school2026] {uid8} {code}: viewed activation failed: {e}")
                     stats["fail"] += 1
                     continue
-                print(f"[school2026] {uid8} {code}: viewed 激活 pending->in_progress")
+                print(f"[school2026] {uid8} {code}: viewed activated pending->in_progress")
                 time.sleep(opts.gap)
             # 2) 触发完成判据。share 一次即完成；report 按 target-当前进度 循环触发
             #    （每次事件独立 +1）。
@@ -620,10 +620,10 @@ def run_account(auth, opts, stats):
                         events, host, extra_h = make_report_events(auth, spec.get("report_kind"))
                         st, r = report_events(auth, events, host=host, extra_headers=extra_h)
                         print(f"[school2026] {uid8} {code}: report #{ri+1}/{rounds} "
-                              f"{len(events)} 事件 -> http={st} "
+                              f"{len(events)} events -> http={st} "
                               f"code={r.get('code') if isinstance(r, dict) else r}")
                 except (AuthError, RuntimeError) as e:
-                    print(f"[school2026] {uid8} {code}: {mode} 触发 #{ri+1} 失败: {e}")
+                    print(f"[school2026] {uid8} {code}: {mode} trigger #{ri+1} failed: {e}")
                     break
                 time.sleep(opts.gap)
                 # 每轮回读一次，判断是否已到 target/completed，提早终止
@@ -640,17 +640,17 @@ def run_account(auth, opts, stats):
             # 3) 最终回读确认
             t2 = refetch(code)
             if not t2:
-                print(f"[school2026] {uid8} {code}: 回读任务失败，跳过")
+                print(f"[school2026] {uid8} {code}: cannot read back tasks; skipping")
                 stats["fail"] += 1
                 continue
             after = (t2.get("status") or "?").lower()
             after_prog = t2.get("progress") or 0
             if after in ("completed", "claimed") or progress_changed:
                 print(f"[school2026] {uid8} {code}: {status}/{t.get('progress')} -> "
-                      f"{after}/{after_prog}（点亮）")
+                      f"{after}/{after_prog} (completed)")
                 stats["ok"] += 1
             else:
-                print(f"[school2026] {uid8} {code}: {status} -> {after}（未变化）")
+                print(f"[school2026] {uid8} {code}: {status} -> {after} (unchanged)")
                 stats["pending"] += 1
             # 4) 若 completed，claim 领奖（chance_granted）
             if after == "completed":
@@ -660,11 +660,11 @@ def run_account(auth, opts, stats):
                           f"code={rc.get('code') if isinstance(rc, dict) else rc}")
                     time.sleep(opts.gap)
                 except (AuthError, RuntimeError) as e:
-                    print(f"[school2026] {uid8} {code}: claim 失败: {e}（可稍后手动补领）")
+                    print(f"[school2026] {uid8} {code}: claim failed: {e} (can claim manually later)")
                     stats["fail"] += 1
         else:  # unknown
-            print(f"[school2026] {uid8} {code}: {status} -> 未知任务类型（{t.get('title') or ''}），"
-                  f"无分类证据，保守跳过")
+            print(f"[school2026] {uid8} {code}: {status} -> unknown task type ({t.get('title') or ''}); "
+                  f"cannot classify; skipping")
             stats["skip"] += 1
 
     # 5) 任务循环收尾：抽奖段（claim 会发多次机会）。--yes 才真正 draw；
@@ -690,38 +690,38 @@ def lottery_account(auth, opts, stats, count_account=True):
         try:
             _, chance = fetch_lottery_config(auth["token"])
         except (AuthError, RuntimeError) as e:
-            print(f"[school2026] {uid8} lottery config 失败: {e}")
+            print(f"[school2026] {uid8} lottery config failed: {e}")
             stats["fail"] += 1
             return
         bal = chance.get("balance") or 0
         if bal <= 0:
-            print(f"[school2026] {uid8} lottery balance=0，无需抽奖")
+            print(f"[school2026] {uid8} lottery balance=0; no draws needed")
             return
-        print(f"[school2026] {uid8} lottery balance={bal}（dry-run：将 POST /wheel/draw 抽 "
-              f"{bal} 次，间隔 ≥1s，不发请求）")
+        print(f"[school2026] {uid8} lottery balance={bal} (dry-run: would POST /wheel/draw "
+              f"{bal} times with ≥1s between calls; no requests sent)")
         stats["pending"] += 1
         return
 
     try:
         cfg, chance = fetch_lottery_config(auth["token"])
     except (AuthError, RuntimeError) as e:
-        print(f"[school2026] {uid8} lottery config 失败: {e}")
+        print(f"[school2026] {uid8} lottery config failed: {e}")
         stats["fail"] += 1
         return
 
     if not cfg.get("in_period"):
-        print(f"[school2026] {uid8} 活动非进行期（in_period=false），抽奖跳过")
+        print(f"[school2026] {uid8} campaign inactive (in_period=false); skipping lottery")
         return
 
     bal = chance.get("balance") or 0
     total_earned = chance.get("total_earned") or 0
     lottery_limit = chance.get("lottery_limit")
     if bal <= 0:
-        print(f"[school2026] {uid8} lottery balance=0（累计获得 {total_earned} 次），无需抽奖")
+        print(f"[school2026] {uid8} lottery balance=0 (total earned {total_earned}); no draws needed")
         return
 
     print(f"[school2026] {uid8} lottery balance={bal} total_earned={total_earned} "
-          f"lottery_limit={lottery_limit}（开始抽奖，抽到空为止）")
+          f"lottery_limit={lottery_limit} (drawing until balance is zero)")
 
     results = []
     total_credit = 0
@@ -732,18 +732,18 @@ def lottery_account(auth, opts, stats, count_account=True):
         try:
             st, r = post_lottery_draw(auth["token"], draw_uuid)
         except (AuthError, RuntimeError) as e:
-            print(f"[school2026] {uid8} draw 失败: {e}")
+            print(f"[school2026] {uid8} draw failed: {e}")
             stats["fail"] += 1
             break
         if st != 200 or (isinstance(r, dict) and r.get("code") not in OK_CODES):
             code = (r or {}).get("code") if isinstance(r, dict) else None
             msg = (r or {}).get("message") if isinstance(r, dict) else r
             if code == 40900:
-                print(f"[school2026] {uid8} draw http={st} code=40900（次数耗尽：no chance），"
-                      f"按边界正常结束")
+                print(f"[school2026] {uid8} draw http={st} code=40900 (chance balance exhausted: no chance); "
+                      f"stopping normally")
                 bal = 0  # 「no chance」边界，如实结束
                 break
-            print(f"[school2026] {uid8} draw http={st} code={code} msg={msg}（未中奖，停）")
+            print(f"[school2026] {uid8} draw http={st} code={code} msg={msg} (no prize; stopping)")
             break
         d = (r or {}).get("data") or {}
         prize_code = d.get("prize_code") or "?"
@@ -752,7 +752,7 @@ def lottery_account(auth, opts, stats, count_account=True):
         if bal >= prev_bal:   # 余额未降：服务端异常，防死循环
             stall += 1
             if stall >= 3:
-                print(f"[school2026] {uid8} draw 余额未递减（服务端异常），提前停")
+                print(f"[school2026] {uid8} draw balance did not decrease (server error); stopping early")
                 break
         else:
             stall = 0
@@ -767,36 +767,36 @@ def lottery_account(auth, opts, stats, count_account=True):
     # 汇总（如实列出每个中奖物）
     if results:
         credit_detail = "+".join(str(x["credit"]) for x in results)
-        print(f"[school2026] {uid8} lottery 汇总: {len(results)} 抽，积分增量 {total_credit}"
-              f"（{credit_detail}）")
+        print(f"[school2026] {uid8} lottery summary: {len(results)} draws; credit increase {total_credit}"
+              f" ({credit_detail})")
         for x in results:
             print(f"    - {x['label']}")
         stats["ok"] += 1 if bal == 0 else 0   # 只有余额归零才算抽完
         if bal > 0:
             stats["pending"] += 1              # 中途被服务端打断，未抽完
     else:
-        print(f"[school2026] {uid8} lottery 无一抽出奖（上次余额 {bal}）")
+        print(f"[school2026] {uid8} lottery returned no prizes (last balance {bal})")
 
 
 def print_notes():
     """打印任务/未打通说明（对应头部风险提示，不编造）。"""
     print("")
-    print("[school2026] 说明：非人工任务（share/chat/desktop/expert）自动点亮并领奖；"
-          "task_student_verify 学生认证为人工环节，--run 跳过；"
-          "幸运大转盘将在任务收尾或 --lottery-only 时抽到余额为 0。")
+    print("[school2026] Non-manual tasks (share/chat/desktop/expert) are completed and claimed automatically; "
+          "task_student_verify requires manual student verification and is skipped by --run; "
+          "the lottery runs after tasks or with --lottery-only until the chance balance is zero.")
 
 
 def main():
-    ap = argparse.ArgumentParser(description="小程序开学季任务中心：只读盘点 + 事件上报自动化")
-    ap.add_argument("accounts", nargs="*", help="uid 前缀（可多个）或 ALL；--token 时可不传")
-    ap.add_argument("--list", action="store_true", help="只读盘点（默认行为）")
-    ap.add_argument("--run", action="store_true", help="执行上报/领取动作（需 --yes 放行真实写）")
+    ap = argparse.ArgumentParser(description="Miniprogram back-to-school tasks: read-only inventory and event automation")
+    ap.add_argument("accounts", nargs="*", help="UID prefixes or ALL; optional with --token")
+    ap.add_argument("--list", action="store_true", help="Read-only inventory (default)")
+    ap.add_argument("--run", action="store_true", help="Report events and claim rewards (requires --yes for writes)")
     ap.add_argument("--lottery-only", action="store_true",
-                    help="只抽奖不做任务（读余额+抽到空）")
-    ap.add_argument("--yes", action="store_true", help="放行写操作（配合 --run/--lottery-only）")
-    ap.add_argument("--token", default=None, help="显式覆盖 token（不同源凭证逃生门）")
-    ap.add_argument("--uid", default="", help="配合 --token 指定 uid（仅日志用）")
-    ap.add_argument("--gap", type=float, default=1.5, help="写动作间隔秒数（默认 1.5，最小 1.0）")
+                    help="Lottery only: read chance balance and draw until empty")
+    ap.add_argument("--yes", action="store_true", help="Allow writes with --run/--lottery-only")
+    ap.add_argument("--token", default=None, help="Override the token explicitly (for alternative credentials)")
+    ap.add_argument("--uid", default="", help="UID for --token (logging only)")
+    ap.add_argument("--gap", type=float, default=1.5, help="Seconds between writes (default: 1.5; minimum: 1.0)")
     tc.add_account_spacing_arguments(ap)
     a = ap.parse_args()
     account_spacing = tc.account_spacing_from_args(a, ap)
@@ -810,7 +810,7 @@ def main():
     run_mode = bool(a.run or a.lottery_only)   # 抽奖也是执行动作（写 draw）
     mode = "LOTTERY" if a.lottery_only else ("RUN" if a.run else "LIST")
     if run_mode and not a.yes:
-        print(f"mode={mode} dry-run（写操作需 --yes 放行；{mode} 不带 --yes 只打印将发送的动作）")
+        print(f"mode={mode} dry-run (writes require --yes; {mode} without --yes only prints planned actions)")
     else:
         print(f"mode={mode} {'REAL' if a.yes else ''} gap={a.gap}")
 
@@ -836,14 +836,14 @@ def main():
                 print(f"ERR: {e}")
 
     if not auths:
-        print("ERR: 无可用账号（检查 auths/ 或 --token）")
+        print("ERR: no available accounts (check auths/ or --token)")
         sys.exit(1)
 
     for auth in auths:
         # global realm 不适用 CN 开学季任务/转盘：明确跳过、不发起任何请求。
         if tc.auth_is_global(auth):
             uid8 = (auth.get("uid") or "")[:8] or "?"
-            print(f"[skip] {uid8} global realm 不适用 CN 任务")
+            print(f"[skip] {uid8} Global realm does not support CN tasks")
             stats["skip"] += 1
             continue
         account_spacing.wait()
@@ -856,7 +856,7 @@ def main():
                 list_account(auth, stats)
         except (AuthError, RuntimeError) as e:
             uid8 = (auth.get("uid") or "")[:8] or "?"
-            print(f"ERR: [school2026] {uid8} 处理失败: {e}")
+            print(f"ERR: [school2026] {uid8} processing failed: {e}")
             stats["fail"] += 1
 
     print(f"school2026 done: accounts={stats['accounts']} ok={stats['ok']} "

@@ -1062,7 +1062,7 @@ func (h *Handler) applyErrorPolicy(uid string, kind upstream.ErrKind, body, mode
 	case upstream.ErrHardCredit:
 		// 402 + 余额关键词即积分耗尽：同步冷却到次日 04:00（签到任务 09/21 点恢复），
 		// 不需要异步核查（冗余）。立即换号。
-		h.cfg.Pool.CooldownUntilTomorrow4AM(uid, "余额不足")
+		h.cfg.Pool.CooldownUntilTomorrow4AM(uid, "insufficient credits")
 	case upstream.ErrSoftRate:
 		// 统一对齐上游重置时间（重构核心）：只要 body 带「将在 … 重置」，无论业务
 		// code 是 6004 还是 11140 rate-limiting 等形态，都精确冷却到该墙钟、绝不

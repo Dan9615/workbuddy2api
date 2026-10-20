@@ -29,7 +29,7 @@ export PYTHONDONTWRITEBYTECODE=1
 
 # ---- Python 解释器选择（优先 PATH 中的 python3） ----
 if ! PY="$(command -v python3 2>/dev/null)"; then
-    echo "[$(date '+%F %T')] ERROR: python3 不在 PATH，无法运行" >&2
+    echo "[$(date '+%F %T')] ERROR: python3 is not in PATH; cannot run" >&2
     exit 1
 fi
 
@@ -39,9 +39,9 @@ case "$MODE" in
     school) CMD=( "$PY" scripts/school_open_day_2026.py ALL --run --yes ) ;;
     cat)    CMD=( "$PY" scripts/task_runner.py ALL --yes --only black_cat ) ;;
     *)
-        echo "用法: $0 {school|cat}" >&2
-        echo "  school  12:00 开学任务：任务+claim+自动抽空抽奖" >&2
-        echo "  cat     01:00 夜猫窗口(23-08 CST)补 1 次" >&2
+        echo "Usage: $0 {school|cat}" >&2
+        echo "  school  12:00 Back-to-school: tasks, claims, and lottery until empty" >&2
+        echo "  cat     01:00 One extra action during the night owl window (23-08 CST)" >&2
         exit 2
         ;;
 esac
@@ -53,18 +53,18 @@ LOCK="$REPO_ROOT/data/school-cron.lock"
 
 exec 9>"$LOCK"
 if ! flock -n 9; then
-    echo "[$(date '+%F %T')] skip[$MODE]: 上一次运行仍持有锁，跳过本次" >>"$LOG"
+    echo "[$(date '+%F %T')] skip[$MODE]: Previous run still holds the lock; skipping" >>"$LOG"
     exit 0
 fi
 
 {
     echo "[$(date '+%F %T')] === cron[$MODE] start: ${CMD[*]} ==="
     if "${CMD[@]}"; then
-        echo "[$(date '+%F %T')] === cron[$MODE] end: 完成 ==="
+        echo "[$(date '+%F %T')] === cron[$MODE] end: completed ==="
     else
         ec=$?
-        echo "[$(date '+%F %T')] ERROR[$MODE]: 退出码 $ec（详见上方输出）"
-        echo "[$(date '+%F %T')] === cron[$MODE] end: 失败 ec=$ec ==="
+        echo "[$(date '+%F %T')] ERROR[$MODE]: exit code $ec (see output above)"
+        echo "[$(date '+%F %T')] === cron[$MODE] end: failed ec=$ec ==="
     fi
     # 日志轮转：超 2MB 截断保留尾部 2000 行
     if [[ -f "$LOG" ]] && [[ $(stat -c%s "$LOG") -gt 2000000 ]]; then

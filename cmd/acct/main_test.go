@@ -34,14 +34,14 @@ func TestStateLabel(t *testing.T) {
 		in   accountStatus
 		want string
 	}{
-		{"正常", accountStatus{}, "正常"},
-		{"仅手动", accountStatus{ManualDisabled: true}, "手动停用"},
-		{"仅自动", accountStatus{Disabled: true}, "自动禁用"},
-		{"叠加", accountStatus{ManualDisabled: true, Disabled: true}, "手动停用 + 自动禁用"},
-		{"带原因", accountStatus{ManualDisabled: true, ManualReason: "观察"}, "手动停用(观察)"},
-		{"冷却", accountStatus{Cooling: true}, "冷却中"},
+		{"healthy", accountStatus{}, "healthy"},
+		{"仅手动", accountStatus{ManualDisabled: true}, "manually disabled"},
+		{"仅自动", accountStatus{Disabled: true}, "automatically disabled"},
+		{"叠加", accountStatus{ManualDisabled: true, Disabled: true}, "manually disabled + automatically disabled"},
+		{"带原因", accountStatus{ManualDisabled: true, ManualReason: "观察"}, "manually disabled(观察)"},
+		{"冷却", accountStatus{Cooling: true}, "cooling down"},
 		{"三者", accountStatus{ManualDisabled: true, Disabled: true, Cooling: true},
-			"手动停用 + 自动禁用 + 冷却中"},
+			"manually disabled + automatically disabled + cooling down"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

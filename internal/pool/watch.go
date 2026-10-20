@@ -38,15 +38,15 @@ var watchInterval = 5 * time.Second
 // 加账号仍可用「手动重启」这条既有退路。
 func (p *Pool) StartAuthDirWatch(dir string) (stop func()) {
 	if dir == "" {
-		log.Printf("[watch] auths 目录未配置，跳过热加载监听")
+		log.Printf("[watch] auths directory not configured; hot reload disabled")
 		return func() {}
 	}
 	base, ok := dirFingerprint(dir)
 	if !ok {
-		log.Printf("[watch] auths 目录 %s 不可读，跳过热加载监听（加账号后需手动重启）", dir)
+		log.Printf("[watch] auths directory %s is unreadable; hot reload disabled (restart manually after adding accounts)", dir)
 		return func() {}
 	}
-	log.Printf("[watch] auths 目录监听已启用（每 %s 检查一次，新增账号自动加载，无需重启）", watchInterval)
+	log.Printf("[watch] watching auths directory every %s (new accounts load without restart)", watchInterval)
 
 	done := make(chan struct{})
 	var stopped bool
@@ -86,17 +86,17 @@ func (p *Pool) StartAuthDirWatch(dir string) (stop func()) {
 func (p *Pool) reloadAuthDir(dir string) {
 	auths, err := auth.LoadDir(dir)
 	if err != nil {
-		log.Printf("WARN: [watch] 重新加载 %s 失败: %v（保持现有池状态）", dir, err)
+		log.Printf("WARN: [watch] cannot reload %s: %v (keeping current pool state)", dir, err)
 		return
 	}
 	before := len(p.AvailableUIDs())
 	p.SyncToDir(auths)
 	after := len(p.AvailableUIDs())
 	if after != before {
-		log.Printf("[watch] auths 目录变化：账号数 %d → %d（已热加载，无需重启）", before, after)
+		log.Printf("[watch] auths directory changed: accounts %d → %d (reloaded without restart)", before, after)
 	} else {
 		// 数量不变但内容变了（如凭证刷新、文件改名）：仍要落一条，便于对账。
-		log.Printf("[watch] auths 目录变化：账号数保持 %d（已热加载凭证更新）", after)
+		log.Printf("[watch] auths directory changed: still %d accounts (credential updates reloaded)", after)
 	}
 }
 

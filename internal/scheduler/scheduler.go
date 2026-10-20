@@ -485,7 +485,7 @@ func (s *Scheduler) checkinAll(ctx context.Context) ([]CheckinOutcome, error) {
 				var ue *upstream.Error
 				if errors.As(err, &ue) && ue.Kind == upstream.ErrSessionDead {
 					if s.cfg.Pool.NoteSessionDead(st.UID) {
-						log.Printf("WARN: checkin %s: 连续 %d 次 12153 session dead — 禁用", logfmt.Label(st.UID, st.Nickname), pool.SessionDeadThreshold())
+						log.Printf("WARN: checkin %s: %d consecutive 12153 session dead errors; disabling account", logfmt.Label(st.UID, st.Nickname), pool.SessionDeadThreshold())
 					}
 				}
 				// 刷新只是"提前补票"：token 若仍有效，继续照常签到（否则刷新接口抖动
@@ -842,7 +842,7 @@ func (s *Scheduler) runKeepalive(ctx context.Context) {
 			var ue *upstream.Error
 			if errors.As(err, &ue) && ue.Kind == upstream.ErrSessionDead {
 				if s.cfg.Pool.NoteSessionDead(st.UID) {
-					log.Printf("WARN: keepalive %s: 连续 %d 次 12153 session dead — 禁用", logfmt.Label(st.UID, st.Nickname), pool.SessionDeadThreshold())
+					log.Printf("WARN: keepalive %s: %d consecutive 12153 session dead errors; disabling account", logfmt.Label(st.UID, st.Nickname), pool.SessionDeadThreshold())
 				}
 			}
 			continue

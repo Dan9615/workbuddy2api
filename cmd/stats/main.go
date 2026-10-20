@@ -69,18 +69,18 @@ type statsResponse struct {
 
 func main() {
 	var (
-		jsonOut  = flag.Bool("json", false, "输出原始 JSON（供脚本消费），不做格式化")
-		watch    = flag.Duration("watch", 0, "原地刷新间隔（如 5s）；0 = 只取一次快照")
-		timeout  = flag.Duration("timeout", 15*time.Second, "HTTP 请求超时")
-		sortKey  = flag.String("sort", "requests", "按模型排序字段：requests|ttfb|tokens|credit|credits")
-		width    = flag.Int("width", 0, "按指定列宽排版（0 = 自动探测终端宽度）")
-		height   = flag.Int("height", 0, "按指定行数排版（0 = 自动探测终端高度）")
-		altScr   = flag.Bool("alt-screen", false, "watch 用备用屏幕缓冲绘制（退出时还原原屏，推荐）")
-		server   = flag.String("server", "", "网关基址（覆盖 config.json 的 listen），如 http://127.0.0.1:7863")
-		showHelp = flag.Bool("h", false, "显示帮助")
+		jsonOut  = flag.Bool("json", false, "Output raw JSON for scripts without formatting")
+		watch    = flag.Duration("watch", 0, "Refresh interval (e.g. 5s); 0 = one snapshot")
+		timeout  = flag.Duration("timeout", 15*time.Second, "HTTP request timeout")
+		sortKey  = flag.String("sort", "requests", "Model sort field: requests|ttfb|tokens|credit|credits")
+		width    = flag.Int("width", 0, "Layout width in columns (0 = detect terminal width)")
+		height   = flag.Int("height", 0, "Layout height in rows (0 = detect terminal height)")
+		altScr   = flag.Bool("alt-screen", false, "Use alternate screen for watch mode (restores screen on exit; recommended)")
+		server   = flag.String("server", "", "Gateway base URL (overrides config.json listen), e.g. http://127.0.0.1:7863")
+		showHelp = flag.Bool("h", false, "Show help")
 	)
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "用法: %s [选项]\n\n选项:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\nOptions:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -92,13 +92,13 @@ func main() {
 	// -watch 与 -json 互斥：watch 会给每帧加光标控制转义，JSON 消费者无法解析；
 	// 而 watch 的意义是"人看着刷新"，与机器消费本就互斥。
 	if err := validateFlags(*watch, *jsonOut, *sortKey); err != nil {
-		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(2)
 	}
 
 	baseURL, apiKey, err := resolveGateway(*server)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "解析网关地址失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Cannot resolve gateway address: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -114,7 +114,7 @@ func main() {
 	}
 
 	if err := renderOnce(baseURL, apiKey, *timeout, *jsonOut, *sortKey, lay); err != nil {
-		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -141,7 +141,7 @@ func resolveLayout(width, height int) layout {
 // validateFlags 校验参数组合。单独成函数便于测试（main 直接 os.Exit）。
 func validateFlags(watch time.Duration, jsonOut bool, sortKey string) error {
 	if watch > 0 && jsonOut {
-		return fmt.Errorf("-watch 与 -json 不能同时使用（watch 用于人看，json 用于脚本消费）")
+		return fmt.Errorf("-watch and -json cannot be used together (watch is interactive; JSON is for scripts)")
 	}
 	// 排序字段白名单：非法值若不拦，sortModels 的 switch 会静默落到默认排序——
 	// 用户以为按 ttfb 排了、实际按 requests，是「看不出错」的错误。
@@ -149,7 +149,7 @@ func validateFlags(watch time.Duration, jsonOut bool, sortKey string) error {
 	switch sortKey {
 	case "requests", "ttfb", "tokens", "credit", "credits":
 	default:
-		return fmt.Errorf("-sort 取值 %q 无效（可选：requests|ttfb|tokens|credit|credits）", sortKey)
+		return fmt.Errorf("invalid -sort value %q (use requests|ttfb|tokens|credit|credits)", sortKey)
 	}
 	return nil
 }
@@ -173,7 +173,7 @@ func resolveGateway(serverOverride string) (baseURL, apiKey string, err error) {
 			APIKey string `json:"api_key"`
 		}
 		if uerr := json.Unmarshal(raw, &cfg); uerr != nil {
-			return "", "", fmt.Errorf("解析 %s 失败: %w", cfgPath, uerr)
+			return "", "", fmt.Errorf("cannot parse %s: %w", cfgPath, uerr)
 		}
 		// 环境变量优先于文件（与 cmd/acct 一致）。
 		apiKey = cfg.APIKey
@@ -197,7 +197,7 @@ func resolveGateway(serverOverride string) (baseURL, apiKey string, err error) {
 	if u := os.Getenv("WB2A_URL"); u != "" {
 		return strings.TrimRight(u, "/"), apiKey, nil
 	}
-	return "", "", fmt.Errorf("读取 %s 失败（可用 -server 或 WB2A_URL 直接指定网关地址）: %w", cfgPath, rerr)
+	return "", "", fmt.Errorf("cannot read %s (use -server or WB2A_URL to specify the gateway URL): %w", cfgPath, rerr)
 }
 
 // normalizeListen 把配置里的 listen（":7863" / "0.0.0.0:7863" / "127.0.0.1:7863"）
@@ -250,7 +250,7 @@ func fetch(baseURL, apiKey string, timeout time.Duration) (*statsResponse, error
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("连接网关失败（%s）: %w", baseURL, err)
+		return nil, fmt.Errorf("cannot connect to gateway (%s): %w", baseURL, err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
@@ -259,18 +259,18 @@ func fetch(baseURL, apiKey string, timeout time.Duration) (*statsResponse, error
 	case http.StatusOK:
 		// 继续解析
 	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("网关拒绝鉴权（401）：检查 config.json 的 api_key 是否正确")
+		return nil, fmt.Errorf("gateway authentication failed (401): check api_key in config.json")
 	case http.StatusNotFound:
 		// 该端点是较新版本才有的能力，旧版网关没有这条路由。给出可操作的提示
 		// 而不是干巴巴的 404。
-		return nil, fmt.Errorf("网关 %s 未提供 /v1/stats（404）—— 该端点需要较新版本的网关", baseURL)
+		return nil, fmt.Errorf("gateway %s does not provide /v1/stats (404); upgrade the gateway", baseURL)
 	default:
-		return nil, fmt.Errorf("网关返回 HTTP %d: %s", resp.StatusCode, truncate(string(body), 200))
+		return nil, fmt.Errorf("gateway returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 200))
 	}
 
 	var out statsResponse
 	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, fmt.Errorf("解析响应失败: %w", err)
+		return nil, fmt.Errorf("cannot parse response: %w", err)
 	}
 	return &out, nil
 }
@@ -298,7 +298,7 @@ func renderOnce(baseURL, apiKey string, timeout time.Duration, jsonOut bool, sor
 
 // ─── 单表渲染 ─────────────────────────────────────────────────────────────
 //
-// 设计：汇总与明细合并为一张表 —— 每个模型一行，统计全量走"合计"行
+// 设计：汇总与明细合并为一张表 —— 每个模型一行，统计全量走"Total"行
 // （仅多模型时出现；单模型时那一行本身就是汇总，重复展示没有信息量）。
 // 失败列按需出现：全部成功时不占位，一旦有失败自动出现以引起注意。
 
@@ -365,11 +365,11 @@ const (
 // now 用于把 last_seen 渲染成相对时间（"22.0h前"）；取零值时该列显示占位符。
 func columns(modelBudget int, now time.Time) []col {
 	return []col{
-		{head: "模型", keep: true, truncate: modelBudget, value: func(m modelStat) string {
+		{head: "Model", keep: true, truncate: modelBudget, value: func(m modelStat) string {
 			return truncateWidth(m.Model, modelBudget)
 		}},
-		{head: "请求", right: true, keep: true, value: func(m modelStat) string { return fmtInt(m.Requests) }},
-		{head: "失败", right: true, keep: true, value: func(m modelStat) string { return fmtInt(m.Failed) },
+		{head: "Reqs", right: true, keep: true, value: func(m modelStat) string { return fmtInt(m.Requests) }},
+		{head: "Fail", right: true, keep: true, value: func(m modelStat) string { return fmtInt(m.Failed) },
 			show: func(rows []modelStat) bool {
 				for _, m := range rows {
 					if m.Failed > 0 {
@@ -378,23 +378,23 @@ func columns(modelBudget int, now time.Time) []col {
 				}
 				return false
 			}},
-		{head: "首字", right: true, dropSeq: 8, value: func(m modelStat) string { return fmtMillis(m.AvgTTFBMS) }},
-		{head: "耗时", right: true, dropSeq: 7, value: func(m modelStat) string { return fmtMillis(m.AvgLatencyMS) }},
-		{head: "吞吐", right: true, dropSeq: 6, value: func(m modelStat) string { return fmtRate(m.TokensPerSec) }},
-		{head: "输入/输出", right: true, dropSeq: 5, value: func(m modelStat) string {
+		{head: "TTFB", right: true, dropSeq: 8, value: func(m modelStat) string { return fmtMillis(m.AvgTTFBMS) }},
+		{head: "Latency", right: true, dropSeq: 7, value: func(m modelStat) string { return fmtMillis(m.AvgLatencyMS) }},
+		{head: "Tokens/s", right: true, dropSeq: 6, value: func(m modelStat) string { return fmtRate(m.TokensPerSec) }},
+		{head: "In/Out", right: true, dropSeq: 5, value: func(m modelStat) string {
 			// 无 usage 观测时（无 token 数据）显示占位符，不显示 0/0 误导。
 			if m.PromptTokens == 0 && m.CompletionTokens == 0 {
 				return "-"
 			}
 			return fmtTokens(m.PromptTokens) + "/" + fmtTokens(m.CompletionTokens)
 		}},
-		{head: "缓存命中", right: true, dropSeq: 4, value: func(m modelStat) string {
+		{head: "Cache hit", right: true, dropSeq: 4, value: func(m modelStat) string {
 			if m.CacheHitTokens+m.CacheMissTokens == 0 {
 				return "-"
 			}
 			return fmt.Sprintf("%.1f%%", m.CacheHitRate*100)
 		}},
-		{head: "倍率", right: true, dropSeq: 10, value: func(m modelStat) string {
+		{head: "Rate", right: true, dropSeq: 10, value: func(m modelStat) string {
 			// 缺倍率（上游未下发 / 目录缓存冷）显示 "-"——与真实 x0.00 免费模型
 			// 视觉区分（issue #176：absent ≠ free）。
 			if m.Credits == "" {
@@ -410,7 +410,7 @@ func columns(modelBudget int, now time.Time) []col {
 			}
 			return false
 		}},
-		{head: "扣费", right: true, dropSeq: 9, value: func(m modelStat) string {
+		{head: "Cost", right: true, dropSeq: 9, value: func(m modelStat) string {
 			return fmt.Sprintf("%.2f", m.Credit)
 		}},
 
@@ -419,7 +419,7 @@ func columns(modelBudget int, now time.Time) []col {
 		// 只纳入**非冗余**字段。success（=请求−失败）、total_tokens（=输入+输出）、
 		// credit_per_req（=扣费÷请求）都能由已有列算出，摆上来只是重复信息，故不纳入。
 		// 这三列顺带把宽窗口的右侧空白填上，但让位序排在最后（最不值钱）。
-		{head: "流式", right: true, dropSeq: 2, value: func(m modelStat) string { return fmtInt(m.Streaming) },
+		{head: "Stream", right: true, dropSeq: 2, value: func(m modelStat) string { return fmtInt(m.Streaming) },
 			show: func(rows []modelStat) bool {
 				for _, m := range rows {
 					if m.Streaming > 0 {
@@ -428,7 +428,7 @@ func columns(modelBudget int, now time.Time) []col {
 				}
 				return false
 			}},
-		{head: "最后活动", right: true, dropSeq: 3, value: func(m modelStat) string { return fago(m.LastSeen, now) },
+		{head: "Last seen", right: true, dropSeq: 3, value: func(m modelStat) string { return fago(m.LastSeen, now) },
 			show: func(rows []modelStat) bool {
 				for _, m := range rows {
 					if m.LastSeen != nil && *m.LastSeen != "" {
@@ -437,7 +437,7 @@ func columns(modelBudget int, now time.Time) []col {
 				}
 				return false
 			}},
-		{head: "缓存写入", right: true, dropSeq: 1,
+		{head: "Cache write", right: true, dropSeq: 1,
 			value: func(m modelStat) string { return fmtTokens(m.CacheWriteTokens) },
 			show: func(rows []modelStat) bool {
 				// 当前网关恒为 0（未采集该指标），故常态隐藏；一旦开始采集会自动出现。
@@ -472,13 +472,13 @@ func fago(lastSeen *string, now time.Time) string {
 	}
 	switch {
 	case d < 90*time.Second:
-		return fmt.Sprintf("%ds前", int(d.Seconds()))
+		return fmt.Sprintf("%ds ago", int(d.Seconds()))
 	case d < 90*time.Minute:
-		return fmt.Sprintf("%dm前", int(d.Minutes()))
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf("%.1fh前", d.Hours())
+		return fmt.Sprintf("%.1fh ago", d.Hours())
 	default:
-		return fmt.Sprintf("%.0fd前", d.Hours()/24)
+		return fmt.Sprintf("%.0fd ago", d.Hours()/24)
 	}
 }
 
@@ -514,7 +514,7 @@ func buildTable(rows []modelStat, total modelStat, sortKey string, maxWidth, max
 	sortModels(body, sortKey)
 
 	withTotal := len(body) > 1
-	const totalLabel = "合计"
+	const totalLabel = "Total"
 
 	// 高度裁剪：表头+分隔线+（合计时再多一条分隔线与合计行）是固定开销，
 	// 余下才是明细可用的行数。折叠提示本身要占一行，故预留。
@@ -741,7 +741,7 @@ func renderTable(vis []col, widths []int, g int, body []modelStat, total modelSt
 	}
 	if folded > 0 {
 		// 折叠提示整行左对齐铺满，不参与列对齐 —— 它不属于数据列。
-		out = append(out, fitLine(fmt.Sprintf(" …另有 %d 个模型未显示（窗口过矮，可放大或去掉 -watch）", folded), tableWidth(widths, g)))
+		out = append(out, fitLine(fmt.Sprintf(" …%d more models hidden (enlarge the window or remove -watch)", folded), tableWidth(widths, g)))
 	}
 	if withTotal {
 		out = append(out, sep.String(), renderRow(totalLabel, total, true))
@@ -798,11 +798,11 @@ func buildFrame(st *statsResponse, sortKey string, fetchErr error, lay layout) [
 	// since 来自网关侧的纯内存累加器（上游实现），进程重启即清零。若写成
 	// "运行 XXh" 会被误读为进程已运行多久，故同时给出窗口时长与起始时刻，
 	// 避免歧义。
-	title := "📈 网关请求统计"
+	title := "📈 Gateway stats"
 	if st != nil && st.UptimeSec > 0 {
-		win := "窗口 " + humanDuration(time.Duration(st.UptimeSec)*time.Second)
+		win := "Window " + humanDuration(time.Duration(st.UptimeSec)*time.Second)
 		if t, err := time.Parse(time.RFC3339, st.Since); err == nil {
-			win += "（自 " + t.Local().Format("01-02 15:04") + "）"
+			win += "(since " + t.Local().Format("01-02 15:04") + ")"
 		}
 		title += " · " + win
 	}
@@ -847,18 +847,18 @@ func buildFrame(st *statsResponse, sortKey string, fetchErr error, lay layout) [
 	if !st.Enabled {
 		msg := st.Message
 		if msg == "" {
-			msg = "网关未返回统计载荷"
+			msg = "Gateway returned no statistics payload"
 		}
-		return append(lines, rule, "⚠ 网关未启用请求统计", fitLine("  "+msg, lay.width))
+		return append(lines, rule, "⚠ Gateway stats are disabled", fitLine("  "+msg, lay.width))
 	}
 
 	if len(st.Models) == 0 {
-		return append(lines, rule, fitLine("暂无数据 —— 统计窗口内没有请求记录（网关重启会清零，-json 可取原始字段）", lay.width))
+		return append(lines, rule, fitLine("No data: no requests in this window (resets on restart; use -json for raw fields)", lay.width))
 	}
 
 	lines = append(lines, rule)
 	lines = append(lines, table...)
-	return append(lines, fitLine("扣费单位=账号积分（非货币）· 完整字段见 -json", lay.width))
+	return append(lines, fitLine("Costs are account credits, not currency · Use -json for all fields", lay.width))
 }
 
 // fitLine 把单行文本裁到不超过 width 显示列（width<=0 表示不限）。
@@ -872,7 +872,7 @@ func fitLine(s string, width int) string {
 	return truncateWidth(s, width)
 }
 
-// frameNow 取渲染"最后活动"列所用的当前时刻。
+// frameNow 取渲染"Last seen"列所用的当前时刻。
 //
 // 优先用网关响应里的 now：网关可能是远程的（WB2A_URL），以它的时钟为准才不会
 // 因两端时钟偏差把"刚刚发生"算成负数或离谱值。字段缺失或解析失败时回落到本机

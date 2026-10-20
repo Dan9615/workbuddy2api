@@ -153,7 +153,7 @@ func TestFetchNotFound(t *testing.T) {
 	if !strings.Contains(err.Error(), "/v1/stats") {
 		t.Errorf("错误应点明缺失端点，得到: %v", err)
 	}
-	if !strings.Contains(err.Error(), "较新版本") {
+	if !strings.Contains(err.Error(), "upgrade") {
 		t.Errorf("错误应给出可操作指引，得到: %v", err)
 	}
 }
@@ -216,7 +216,7 @@ func TestRenderDisabled(t *testing.T) {
 			t.Errorf("renderOnce: %v", err)
 		}
 	})
-	if !strings.Contains(out, "未启用") {
+	if !strings.Contains(out, "disabled") {
 		t.Errorf("应提示未启用，得到: %s", out)
 	}
 	if !strings.Contains(out, "统计载荷缺失") {
@@ -236,7 +236,7 @@ func TestRenderNoData(t *testing.T) {
 			t.Errorf("renderOnce: %v", err)
 		}
 	})
-	if !strings.Contains(out, "暂无数据") {
+	if !strings.Contains(out, "No data") {
 		t.Errorf("应提示暂无数据，得到: %s", out)
 	}
 	if strings.Contains(out, "NaN") || strings.Contains(out, "+Inf") {
@@ -296,7 +296,7 @@ func TestSortModels(t *testing.T) {
 // ─── 单表渲染 ─────────────────────────────────────────────────────────────
 
 // testNow 是表格测试共用的"当前时刻"，与 mkModel 的时间基准配合，
-// 让"最后活动"这类相对时间列的渲染结果完全确定、可断言。
+// 让"Last seen"这类相对时间列的渲染结果完全确定、可断言。
 var testNow = time.Date(2026, 9, 15, 21, 30, 0, 0, time.UTC)
 
 // mkModel 造一行统计，只填关心的字段。
@@ -331,7 +331,7 @@ func TestTableSingleModelNoTotalRow(t *testing.T) {
 	table := buildTable(rows, mkModel("(all)", 131, 0), "requests", 0, 0, testNow)
 
 	joined := strings.Join(table, "\n")
-	if strings.Contains(joined, "合计") {
+	if strings.Contains(joined, "Total") {
 		t.Errorf("单模型不应有合计行:\n%s", joined)
 	}
 	// 表头 + 分隔线 + 1 数据行 = 3 行
@@ -346,7 +346,7 @@ func TestTableMultiModelHasTotalRow(t *testing.T) {
 	table := buildTable(rows, mkModel("(all)", 201, 0), "requests", 0, 0, testNow)
 
 	joined := strings.Join(table, "\n")
-	if !strings.Contains(joined, "合计") {
+	if !strings.Contains(joined, "Total") {
 		t.Errorf("多模型应有合计行:\n%s", joined)
 	}
 	// 表头 + 分隔线 + 2 数据 + 分隔线 + 合计 = 6 行
@@ -359,12 +359,12 @@ func TestTableMultiModelHasTotalRow(t *testing.T) {
 // 任一模型有失败则出现。
 func TestTableFailedColumnHidden(t *testing.T) {
 	noFail := buildTable([]modelStat{mkModel("a", 10, 0)}, mkModel("(all)", 10, 0), "requests", 0, 0, testNow)
-	if strings.Contains(strings.Join(noFail, "\n"), "失败") {
+	if strings.Contains(strings.Join(noFail, "\n"), "Fail") {
 		t.Errorf("无失败时不应出现失败列:\n%s", strings.Join(noFail, "\n"))
 	}
 
 	withFail := buildTable([]modelStat{mkModel("a", 10, 2)}, mkModel("(all)", 10, 2), "requests", 0, 0, testNow)
-	if !strings.Contains(strings.Join(withFail, "\n"), "失败") {
+	if !strings.Contains(strings.Join(withFail, "\n"), "Fail") {
 		t.Errorf("有失败时应出现失败列:\n%s", strings.Join(withFail, "\n"))
 	}
 }
@@ -491,7 +491,7 @@ func TestDisplayWidth(t *testing.T) {
 	}{
 		{"abc", 3},
 		{"总请求", 6},
-		{"首字", 4},
+		{"TTFB", 4},
 		{"tok/s", 5},
 		{"97.3%", 5},
 		{"", 0},
@@ -535,15 +535,15 @@ func TestBuildFrameStructure(t *testing.T) {
 	}
 	frame := buildFrame(st, "requests", nil, layout{})
 
-	if !strings.Contains(frame[0], "网关请求统计") {
+	if !strings.Contains(frame[0], "Gateway stats") {
 		t.Errorf("首行应为标题，得到 %q", frame[0])
 	}
 	// 措辞必须是「窗口」而非「运行」：该时长来自持久化的 since（跨重启保留），
-	// 不是进程 uptime —— 写成"运行"会让用户误以为进程已跑这么久。
-	if !strings.Contains(frame[0], "窗口 1h29m") {
+	// 不是进程 uptime —— 写成"Uptime"会让用户误以为进程已跑这么久。
+	if !strings.Contains(frame[0], "Window 1h29m") {
 		t.Errorf("标题应含统计窗口时长，得到 %q", frame[0])
 	}
-	if strings.Contains(frame[0], "运行") {
+	if strings.Contains(frame[0], "Uptime") {
 		t.Errorf("标题不应出现「运行」（会被误读为进程 uptime），得到 %q", frame[0])
 	}
 	// 同时给出起始时刻，进一步消除歧义。
@@ -551,10 +551,10 @@ func TestBuildFrameStructure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse test since: %v", err)
 	}
-	if want := "自 " + parsed.Local().Format("01-02 15:04"); !strings.Contains(frame[0], want) {
+	if want := "since " + parsed.Local().Format("01-02 15:04"); !strings.Contains(frame[0], want) {
 		t.Errorf("标题应含窗口起始时刻 %q，得到 %q", want, frame[0])
 	}
-	if !strings.Contains(frame[len(frame)-1], "账号积分") {
+	if !strings.Contains(frame[len(frame)-1], "account credits") {
 		t.Errorf("尾注应说明扣费单位，得到 %q", frame[len(frame)-1])
 	}
 	// 表体存在（含模型名）。
@@ -574,10 +574,10 @@ func TestBuildFrameTitleWithoutSince(t *testing.T) {
 			Models: []modelStat{mkModel("m", 1, 0)},
 		}
 		frame := buildFrame(st, "requests", nil, layout{})
-		if !strings.Contains(frame[0], "窗口 1h0m") {
+		if !strings.Contains(frame[0], "Window 1h0m") {
 			t.Errorf("since=%q 时仍应显示窗口时长，得到 %q", since, frame[0])
 		}
-		if strings.Contains(frame[0], "自 ") {
+		if strings.Contains(frame[0], "since ") {
 			t.Errorf("since=%q 不可解析时不应出现起始时刻片段，得到 %q", since, frame[0])
 		}
 	}
@@ -586,9 +586,9 @@ func TestBuildFrameTitleWithoutSince(t *testing.T) {
 // TestBuildFrameFetchError 拉取失败时错误进帧内（而非 stderr），
 // 且帧结构仍成立 —— watch 模式依赖行数稳定才不覆盖错位。
 func TestBuildFrameFetchError(t *testing.T) {
-	frame := buildFrame(&statsResponse{}, "requests", fmt.Errorf("连接网关失败（http://x）: refused"), layout{})
+	frame := buildFrame(&statsResponse{}, "requests", fmt.Errorf("cannot connect to gateway (http://x): refused"), layout{})
 	joined := strings.Join(frame, "\n")
-	if !strings.Contains(joined, "连接网关失败") {
+	if !strings.Contains(joined, "cannot connect to gateway") {
 		t.Errorf("错误应出现在帧内:\n%s", joined)
 	}
 	if len(frame) < 3 {
@@ -600,7 +600,7 @@ func TestBuildFrameFetchError(t *testing.T) {
 func TestBuildFrameNoData(t *testing.T) {
 	frame := buildFrame(&statsResponse{Enabled: true, UptimeSec: 5}, "requests", nil, layout{})
 	joined := strings.Join(frame, "\n")
-	if !strings.Contains(joined, "暂无数据") {
+	if !strings.Contains(joined, "No data") {
 		t.Errorf("应提示暂无数据:\n%s", joined)
 	}
 }
@@ -626,7 +626,7 @@ func TestValidateFlags(t *testing.T) {
 		}
 	}
 	// 非法值必须报错，不能静默落到默认排序（用户会以为按 ttfb 排了）。
-	for _, bad := range []string{"", "invalid", "Requests", "req"} {
+	for _, bad := range []string{"", "invalid", "Reqs", "req"} {
 		err := validateFlags(0, false, bad)
 		if err == nil {
 			t.Errorf("-sort=%q 应报错（静默回落会掩盖用户笔误）", bad)
@@ -792,7 +792,7 @@ func TestTableCreditsColumn(t *testing.T) {
 	tbl := buildTable([]modelStat{rich, plain}, mkModel("(all)", 15, 0), "requests", 0, 0, testNow)
 
 	joined := strings.Join(tbl, "\n")
-	if !strings.Contains(joined, "倍率") {
+	if !strings.Contains(joined, "Rate") {
 		t.Fatalf("有倍率时应出现倍率列:\n%s", joined)
 	}
 	if !strings.Contains(joined, "x0.06") {
@@ -802,8 +802,8 @@ func TestTableCreditsColumn(t *testing.T) {
 	// 即为它与扣费之间的 |。
 	hdr := tbl[0]
 	bars := barColumns(hdr, '|')
-	ri := strings.Index(hdr, "倍率")
-	ki := strings.Index(hdr, "扣费")
+	ri := strings.Index(hdr, "Rate")
+	ki := strings.Index(hdr, "Cost")
 	if ri < 0 || ki < 0 {
 		t.Fatalf("表头缺 倍率/扣费：%q", hdr)
 	}
@@ -834,7 +834,7 @@ func TestTableCreditsColumn(t *testing.T) {
 	// (b) 全表无倍率 → 列隐藏，且列数（| 个数）与既有 9 列布局一致。
 	hidden := buildTable([]modelStat{mkModel("a", 10, 0)}, mkModel("(all)", 10, 0), "requests", 0, 0, testNow)
 	hj := strings.Join(hidden, "\n")
-	if strings.Contains(hj, "倍率") {
+	if strings.Contains(hj, "Rate") {
 		t.Errorf("全表无倍率时不应出现倍率列:\n%s", hj)
 	}
 	baseBars := strings.Count(hidden[0], "|")

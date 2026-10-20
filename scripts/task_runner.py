@@ -24,9 +24,9 @@
     create_canvas        wbx_design_canvas_task_create      1  （自造 id wb-<ms>）
     template_5           agent_task_created_with_template   5  （scene ids: /console/as/support/scenes）
     expert_5             expert_actual_use                  5  (ex_ id: market expert/list)
-    Expert_team_use_3    expert_actual_use(expertType=team) 3  （团队 id: market/COS expertType=team）
+    Expert_team_use_3    expert_actual_use(expertType=team) 3  （team ID: market/COS expertType=team）
     skill_1              skill_info                         1  （skillId: market/skill/list）
-    automation_1         automated_task_create_suc          1  （rrule 虚拟对象）
+    automation_1         automated_task_create_suc          1  （virtual rrule object）
     playbook_prompt      playbook_prompt_send               1  （案例 id: static registry.json）
     Expert_lighthouse    expert_actual_use                  1  （轻量云 ex_ id: 关键词过滤）
     Hp_Appearance        appearance_skin_apply              1  （theme resourceKey: appearance/resources）
@@ -114,55 +114,55 @@ import school_open_day_2026 as school
 #   unforgeable / reason   不可伪造任务的标注
 # --------------------------------------------------------------------------
 MAPPING = {
-    "create_canvas":          {"kind": "canvas",     "target": 1, "src": "自造 wb-<ms>"},
-    "template_5":             {"kind": "template",   "target": 5, "src": "scenes 场景 id"},
-    "expert_5":               {"kind": "expert",     "target": 5, "src": "专家市场 ex_ id"},
-    "Expert_team_use_3":      {"kind": "team",       "target": 3, "src": "团队 id"},
+    "create_canvas":          {"kind": "canvas",     "target": 1, "src": "generated wb-<ms>"},
+    "template_5":             {"kind": "template",   "target": 5, "src": "scenes ID"},
+    "expert_5":               {"kind": "expert",     "target": 5, "src": "expert marketplace ex_ ID"},
+    "Expert_team_use_3":      {"kind": "team",       "target": 3, "src": "team ID"},
     "skill_1":                {"kind": "skill",      "target": 1, "src": "skillId"},
-    "automation_1":           {"kind": "automation", "target": 1, "src": "rrule 虚拟对象"},
-    "playbook_prompt":        {"kind": "playbook",   "target": 1, "src": "playbook 案例 id"},
-    "Expert_lighthouse":      {"kind": "lighthouse", "target": 1, "src": "轻量云专家 id"},
-    "Buddy_App":              {"kind": "buddy5",     "target": 1, "src": "buddy 应用 id"},
-    "Buddy_App_QQ":           {"kind": "buddy5",     "target": 1, "src": "企鹅教师助手 id"},
-    "Hp_Appearance":          {"kind": "skin",       "target": 1, "src": "主题 resourceKey"},
-    "chat_5":                 {"kind": "chat",       "target": 5, "src": "无(独立会话)"},
-    "Model_chat_GLM5.2":      {"kind": "glmchat",    "target": 1, "src": "无(glm-5.2)"},
+    "automation_1":           {"kind": "automation", "target": 1, "src": "virtual rrule object"},
+    "playbook_prompt":        {"kind": "playbook",   "target": 1, "src": "playbook case ID"},
+    "Expert_lighthouse":      {"kind": "lighthouse", "target": 1, "src": "Lighthouse expert ID"},
+    "Buddy_App":              {"kind": "buddy5",     "target": 1, "src": "Buddy app ID"},
+    "Buddy_App_QQ":           {"kind": "buddy5",     "target": 1, "src": "Penguin Teacher Assistant ID"},
+    "Hp_Appearance":          {"kind": "skin",       "target": 1, "src": "theme resourceKey"},
+    "chat_5":                 {"kind": "chat",       "target": 5, "src": "none (independent conversation)"},
+    "Model_chat_GLM5.2":      {"kind": "glmchat",    "target": 1, "src": "none (glm-5.2)"},
     # 特殊：时段敏感（夜猫窗口 23-08 CST），窗口内最多补 1 次
-    "black_cat":              {"kind": "cat",        "target": 3, "src": "无(glm-5.2 夜猫)"},
+    "black_cat":              {"kind": "cat",        "target": 3, "src": "none (glm-5.2 night owl)"},
     # 领养链路（fork adoptBuddy：report 前置解锁 → agreement → buddy/first → claim）
-    "first_buddy":            {"kind": "buddyfirst", "target": 1, "src": "无(report→agreement→first)"},
+    "first_buddy":            {"kind": "buddyfirst", "target": 1, "src": "none (report→agreement→first)"},
     # 桌面指纹 6 连对话事件链（fork DesktopChatSequence，三账号实测点亮）
-    "RichMeow_Chat":          {"kind": "richmeow",   "target": 1, "src": "无(桌面指纹对话链)"},
+    "RichMeow_Chat":          {"kind": "richmeow",   "target": 1, "src": "none (desktop conversation event sequence)"},
     # web 域 web_element_click（fork ReportWebEvent，三账号实测点亮）
-    "Library_read":           {"kind": "library",    "target": 1, "src": "无(资料库介绍点击)"},
+    "Library_read":           {"kind": "library",    "target": 1, "src": "none (library introduction click)"},
     # 小程序开学季任务（school_open_day_2026.py 同款判据，accept=viewed 激活）
-    "chat_3_times":           {"kind": "school", "target": 3, "src": "无(mini_chat×3+activityId)"},
-    "expert_use":             {"kind": "school", "target": 1, "src": "BackToSchool 专家 id"},
-    "share_invite":           {"kind": "school", "target": 1, "src": "无(share-complete)"},
-    "desktop_chat_1_time":    {"kind": "school", "target": 1, "src": "无(桌面 6 连+activityId)"},
+    "chat_3_times":           {"kind": "school", "target": 3, "src": "none (mini_chat×3+activityId)"},
+    "expert_use":             {"kind": "school", "target": 1, "src": "BackToSchool expert ID"},
+    "share_invite":           {"kind": "school", "target": 1, "src": "none (share-complete)"},
+    "desktop_chat_1_time":    {"kind": "school", "target": 1, "src": "none (six desktop events+activityId)"},
     # 小程序成长任务（growth 域小程序限定）：列表/accept/claim 均需 X-Client-Platform: miniprogram
-    "Sequential_Tasks_1":     {"kind": "minichat", "target": 1, "src": "无(mini 对话无activityId)"},
+    "Sequential_Tasks_1":     {"kind": "minichat", "target": 1, "src": "none (mini chat without activityId)"},
     # 同下发口径的「校园日」任务：判据是 school 域 activityId 关联（mini chat + activityId）
-    "school_season":          {"kind": "schoolseason", "target": 1, "src": "无(mini chat+activityId)"},
+    "school_season":          {"kind": "schoolseason", "target": 1, "src": "none (mini chat+activityId)"},
     # 小程序成长任务续（同 mp 下发口径、同 minichat 处理链路）：
     # Sequential_Tasks_2 = 小程序内选中专家并完成有效对话，判据 mp 指纹 expert_actual_use，
     # 无 activityId/conversationId（小程序源码实测形状，勿照抄 school 的 expert 事件）
-    "Sequential_Tasks_2":     {"kind": "miniexpert", "target": 1, "src": "专家市场 ex_ id(mini)"},
+    "Sequential_Tasks_2":     {"kind": "miniexpert", "target": 1, "src": "expert marketplace ex_ ID(mini)"},
     # Sequential_Tasks_3 = 小程序内完成 5 次有效对话：与 Tasks_1 判据同形状（mp 指纹
     # chat_request_send 无 activityId），只是 target=5 —— 按上报条数累加，无需新事件形状
-    "Sequential_Tasks_3":     {"kind": "minichat", "target": 5, "src": "无(mini 对话×5 无activityId)"},
+    "Sequential_Tasks_3":     {"kind": "minichat", "target": 5, "src": "none (mini chat×5 without activityId)"},
     # Sequential_Tasks_4 = 小程序内创建一个定时任务：判据 mp 指纹 automated_task_create_suc
     # （小程序源码实测形状：ideName=wx_app_cloud + mode=CLOUD，**不带** schedule/rrule 对象
-    #  ——桌面 automation_1 的 rrule 虚拟对象是另一域口径，照抄会失去 mp 关联）
-    "Sequential_Tasks_4":     {"kind": "miniautomation", "target": 1, "src": "无(mp 自造定时任务名)"},
+    #  ——桌面 automation_1 的 virtual rrule object是另一域口径，照抄会失去 mp 关联）
+    "Sequential_Tasks_4":     {"kind": "miniautomation", "target": 1, "src": "none (generated miniprogram scheduled task name)"},
     # Sequential_Tasks_5 = 小程序内选择 GLM5.2 模型并完成有效对话：判据同 minichat 的
     # mini 指纹 chat_request_send，只是**多带模型上下文**（requestModelId=glm-5.2 /
     # requestModelName=GLM-5.2）——服务端据此把这次对话计入「用过 GLM5.2」。
     # 注意本任务营地上线时间为 2026-09-25 00:00 CST，解锁前 accept 被服务端拒绝
     # （task locked until 2026-09-25），届时才可实测。
-    "Sequential_Tasks_5":     {"kind": "miniglmchat", "target": 1, "src": "无(glm-5.2 模型上下文)"},
+    "Sequential_Tasks_5":     {"kind": "miniglmchat", "target": 1, "src": "none (glm-5.2 model context)"},
     # 不可伪造（真实业务副作用）
-    "Expert_Philanthropy":    {"unforgeable": True, "reason": "真实捐款动作(M8)"},
+    "Expert_Philanthropy":    {"unforgeable": True, "reason": "requires an actual donation (M8)"},
 }
 
 # 夜猫时段（CST）23:00 - 次日 08:00
@@ -316,7 +316,7 @@ def _fetch_scenes(auth):
                 if s.get("id") is not None:
                     out.append((str(s["id"]), s.get("name") or ""))
     except Exception as ex:
-        print(f"  [warn] 场景清单拉取失败({ex})，回落内置表")
+        print(f"  [warn] cannot fetch scenes ({ex}); using built-in list")
     if not out:
         out = [(str(i), n) for i, n in DEFAULT_SCENES]
     return out
@@ -353,7 +353,7 @@ def _fetch_market_experts(auth, team_only=False, keyword=None):
             if len(experts) < 50:
                 break
     except Exception as ex:
-        print(f"  [warn] 专家市场拉取失败({ex})，回落内置表")
+        print(f"  [warn] cannot fetch expert marketplace ({ex}); using built-in list")
     # COS 静态清单补足（expert_center.json）：团队专家市场列表很薄（250 个里仅 2 个 team），
     # M4 实测 COS 有 52 个 team，作为 team_only 的主/补来源；普通专家用市场 ex_ id。
     try:
@@ -374,7 +374,7 @@ def _fetch_market_experts(auth, team_only=False, keyword=None):
                               "category": e.get("categoryId") or "",
                               "expertType": etype, "version": ""}))
     except Exception as ex2:
-        print(f"  [warn] COS 专家清单失败({ex2})")
+        print(f"  [warn] cannot fetch COS expert list ({ex2})")
     if not out:
         ids = DEFAULT_TEAM_IDS if team_only else DEFAULT_EXPERT_IDS
         out = [(i, {"name": EXPERT_NAMES.get(i, ""), "category": "",
@@ -394,7 +394,7 @@ def _fetch_skills(auth):
                 if s.get("skill_id"):
                     out.append((s["skill_id"], s.get("name") or ""))
     except Exception as ex:
-        print(f"  [warn] 技能市场拉取失败({ex})，回落内置表")
+        print(f"  [warn] cannot fetch skill marketplace ({ex}); using built-in list")
     if not out:
         out = DEFAULT_SKILL_IDS
     return out
@@ -418,7 +418,7 @@ def _fetch_playbook_cases():
                                       "prompt": c.get("prompt") or "",
                                       "source": "discover"}))
     except Exception as ex:
-        print(f"  [warn] 案例注册表拉取失败({ex})，回落内置表")
+        print(f"  [warn] cannot fetch case registry ({ex}); using built-in list")
     if not out:
         out = DEFAULT_CASES
     return out
@@ -454,7 +454,7 @@ def _fetch_pe_theme(auth):
                                 "series": x.get("series", ""),
                                 "appearance": x.get("appearance", "")}))
     except Exception as ex:
-        print(f"  [warn] 主题目录拉取失败({ex})，回落内置表")
+        print(f"  [warn] cannot fetch theme catalog ({ex}); using built-in list")
     if not out:
         out = [PE_THEME]
     return out
@@ -951,7 +951,7 @@ def claim_one(auth, code, uid8, stats, gap, mp=False):
         msg = r.get("msg") if isinstance(r, dict) else r
         # 400 降级到 web 域（fork 实测 Web 成长中心端点）：chat 域路径对部分任务 400
         if st == 400:
-            print(f"[task_runner] {uid8} {code}: claim 400 {msg} -> 降级 web 域")
+            print(f"[task_runner] {uid8} {code}: claim 400 {msg} -> falling back to web domain")
             return _claim_via_web(auth, code, uid8, stats, gap)
         print(f"[task_runner] {uid8} {code}: claim {st} {msg} -> ERR")
         stats["fail"] += 1
@@ -997,19 +997,19 @@ def process_school_task(auth, code, t, st_tasks, uid8, opts, stats):
     stats["total"] += 1
 
     if status in ("completed", "claimed"):
-        print(f"[task_runner] {uid8} {code}: query {status}({cur}/{target}) -> 已完成/已领，跳过")
+        print(f"[task_runner] {uid8} {code}: query {status}({cur}/{target}) -> already completed/claimed; skipping")
         stats["already"] += 1
         return
 
     report_kind = SCHOOL_REPORT_KIND.get(code)
     if report_kind is None:
-        print(f"[task_runner] {uid8} {code}: query {status} -> school 未映射(人工/未知)，skip")
+        print(f"[task_runner] {uid8} {code}: query {status} -> school unmapped (manual/unknown); skipping")
         stats["skip"] += 1
         return
 
     if not opts.yes:
         print(f"[task_runner] {uid8} {code}: query {status}({cur}/{target}) reward={reward} "
-              f"-> school {report_kind} 判据（dry-run 跳过）")
+              f"-> school {report_kind} completion event (skipped in dry-run)")
         stats["pending"] += 1
         return
 
@@ -1017,11 +1017,11 @@ def process_school_task(auth, code, t, st_tasks, uid8, opts, stats):
     if status == "pending":
         try:
             st, r = school.post_viewed(auth["token"], code)
-            print(f"[task_runner] {uid8} {code}: viewed 激活 {st} "
+            print(f"[task_runner] {uid8} {code}: viewed activation {st} "
                   f"code={r.get('code') if isinstance(r, dict) else r}")
             time.sleep(opts.gap)
         except Exception as e:
-            print(f"[task_runner] {uid8} {code}: viewed 失败: {e}")
+            print(f"[task_runner] {uid8} {code}: viewed failed: {e}")
             stats["fail"] += 1
             return
 
@@ -1045,7 +1045,7 @@ def process_school_task(auth, code, t, st_tasks, uid8, opts, stats):
             print(f"[task_runner] {uid8} {code}: report {ri + 1}/{rounds} {st} "
                   f"code={r.get('code') if isinstance(r, dict) else r} ({report_kind})")
         except Exception as e:
-            print(f"[task_runner] {uid8} {code}: report 失败 #{ri + 1}: {e}")
+            print(f"[task_runner] {uid8} {code}: report failed #{ri + 1}: {e}")
             stats["fail"] += 1
             break
         time.sleep(opts.gap)
@@ -1064,11 +1064,11 @@ def process_school_task(auth, code, t, st_tasks, uid8, opts, stats):
     after = (t2.get("status") or "?").lower()
     after_prog = t2.get("progress") or 0
     if after == "claimed":
-        print(f"[task_runner] {uid8} {code}: {status}/{cur} -> claimed（本轮已入账）")
+        print(f"[task_runner] {uid8} {code}: {status}/{cur} -> claimed (credited this run)")
         stats["already"] += 1
         return
     if after == "completed" or after_prog >= target:
-        print(f"[task_runner] {uid8} {code}: {status} -> {after}/{after_prog}（点亮）")
+        print(f"[task_runner] {uid8} {code}: {status} -> {after}/{after_prog} (completed)")
         try:
             stc, rc = school.post_claim(auth["token"], code)
             print(f"[task_runner] {uid8} {code}: claim {stc} "
@@ -1076,14 +1076,14 @@ def process_school_task(auth, code, t, st_tasks, uid8, opts, stats):
             stats["ok"] += 1
             time.sleep(opts.gap)
         except Exception as e:
-            print(f"[task_runner] {uid8} {code}: claim 失败: {e}（可稍后补领）")
+            print(f"[task_runner] {uid8} {code}: claim failed: {e} (can claim later)")
             stats["fail"] += 1
         return
     if progressed:
-        print(f"[task_runner] {uid8} {code}: {status} -> {after}/{after_prog}（部分点亮，未达 target）")
+        print(f"[task_runner] {uid8} {code}: {status} -> {after}/{after_prog} (partial progress; target not reached)")
         stats["ok"] += 1
     else:
-        print(f"[task_runner] {uid8} {code}: {status} -> {after}/{after_prog}（未变化）")
+        print(f"[task_runner] {uid8} {code}: {status} -> {after}/{after_prog} (unchanged)")
         stats["pending"] += 1
 
 
@@ -1092,11 +1092,11 @@ def process_school_tasks(auth, opts, stats, uid8):
     try:
         tasks, in_period = school_fetch_tasks(auth)
     except Exception as e:
-        print(f"[task_runner] {uid8} school/tasks 拉取失败: {e}")
+        print(f"[task_runner] {uid8} school/tasks fetch failed: {e}")
         stats["fail"] += 1
         return
     if not in_period:
-        print(f"[task_runner] {uid8} school 活动非进行期（in_period=false），school 段跳过")
+        print(f"[task_runner] {uid8} school campaign inactive (in_period=false); skipping school tasks")
         return
     print(f"[task_runner] {uid8} school/tasks in_period={in_period} tasks={len(tasks)}")
     for code in SCHOOL_CODES:
@@ -1142,11 +1142,11 @@ def process_minichat_task(auth, code, opts, stats, uid8):
     try:
         t = _mp_task_status(auth, code)
     except Exception as e:
-        print(f"[task_runner] {uid8} {code}: mp list_tasks 失败: {e}")
+        print(f"[task_runner] {uid8} {code}: mp list_tasks failed: {e}")
         stats["fail"] += 1
         return
     if t is None:
-        print(f"[task_runner] {uid8} {code}: mp 口径任务不存在，skip")
+        print(f"[task_runner] {uid8} {code}: task not available for miniprogram; skipping")
         stats["skip"] += 1
         return
 
@@ -1159,7 +1159,7 @@ def process_minichat_task(auth, code, opts, stats, uid8):
     stats["total"] += 1
 
     if ast == "claimed":
-        print(f"[task_runner] {uid8} {code}: query claimed({cur}/{target}) -> 已领，跳过")
+        print(f"[task_runner] {uid8} {code}: query claimed({cur}/{target}) -> already claimed; skipping")
         stats["already"] += 1
         return
     # 未到上线时间（服务端 locked + unlock_at，如 Sequential_Tasks_5 的 2026-09-25）：
@@ -1167,19 +1167,19 @@ def process_minichat_task(auth, code, opts, stats, uid8):
     # 按日期自终止——解锁后同一命令无需改参数即自然开始执行；解锁前记 pending
     # （可做但条件未到），不记 fail（既非错误也非死任务）。
     if t.get("locked"):
-        print(f"[task_runner] {uid8} {code}: query locked（解锁 {t.get('unlock_at') or '?'}）-> 未到上线时间，跳过")
+        print(f"[task_runner] {uid8} {code}: query locked (unlocks {t.get('unlock_at') or '?'}) -> not available yet; skipping")
         stats["pending"] += 1
         return
     if ast == "completed" or cur >= target:
         if not opts.yes:
-            print(f"[task_runner] {uid8} {code}: query completed({cur}/{target}) -> 可领(claim)，dry-run 跳过")
+            print(f"[task_runner] {uid8} {code}: query completed({cur}/{target}) -> claimable; skipped in dry-run")
             stats["pending"] += 1
             return
         claim_one(auth, code, uid8, stats, opts.gap, mp=True)
         return
 
     if not opts.yes:
-        print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> 可点亮({kind})，dry-run 跳过")
+        print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> can complete ({kind}); skipped in dry-run")
         stats["pending"] += 1
         return
 
@@ -1191,13 +1191,13 @@ def process_minichat_task(auth, code, opts, stats, uid8):
     need = max(1, target - cur)
     ids = ids_for(kind, auth, need, offset=cur)
     if not ids:
-        print(f"[task_runner] {uid8} {code}: {kind} 无可用对象 id，WARN 跳过点亮")
+        print(f"[task_runner] {uid8} {code}: {kind} no available object ID; WARN skipping completion")
         stats["pending"] += 1
         return
     if len(ids) < need:
         # 对象池不够本轮目标（如专家市场返回数少于 need）：按可用数上报，剩余下次补
         # （回读会如实报出缺口并记 pending，不伪造 id 凑数）。
-        print(f"[task_runner] {uid8} {code}: 可用对象 id {len(ids)} < 需 {need}，本轮按可用数上报")
+        print(f"[task_runner] {uid8} {code}: available object IDs {len(ids)} < required {need}; reporting available objects this run")
 
     # 1) accept（mp 头；缺头实测 task not found）
     if ast == "not_accepted":
@@ -1232,13 +1232,13 @@ def process_minichat_task(auth, code, opts, stats, uid8):
     target2 = prog2.get("target") or spec.get("target") or 1
     print(f"[task_runner] {uid8} {code}: query re-read {cur2}/{target2} accept_status={ast2}")
     if ast2 == "claimed":
-        print(f"[task_runner] {uid8} {code}: {ast} -> claimed（本轮已入账）")
+        print(f"[task_runner] {uid8} {code}: {ast} -> claimed (credited this run)")
         stats["already"] += 1
         return
     if ast2 == "completed" or cur2 >= target2:
         claim_one(auth, code, uid8, stats, opts.gap, mp=True)
         return
-    print(f"[task_runner] {uid8} {code}: report 未达 target（{cur2}/{target2}），WARN 待下次")
+    print(f"[task_runner] {uid8} {code}: report target not reached ({cur2}/{target2}); WARN retry next run")
     stats["pending"] += 1
 
 
@@ -1249,7 +1249,7 @@ def process_task(auth, code, t, opts, stats):
     uid8 = auth["uid"][:8]
     spec = MAPPING.get(code)
     if spec is None:
-        print(f"[task_runner] {uid8} {code}: query 非映射任务，skip")
+        print(f"[task_runner] {uid8} {code}: query unmapped task; skipping")
         stats["total"] += 1
         stats["skip"] += 1
         return
@@ -1261,7 +1261,7 @@ def process_task(auth, code, t, opts, stats):
 
     # 不可伪造任务：跳过并如实标注
     if spec.get("unforgeable"):
-        print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> 不可伪造({spec['reason']})，skip")
+        print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> requires a real action ({spec['reason']}); skipping")
         stats["skip"] += 1
         return
 
@@ -1269,11 +1269,11 @@ def process_task(auth, code, t, opts, stats):
     # 未满足任务跳过（服务端对未完成任务返回 task not completed，不强行）。
     if opts.only_claim:
         if ast != "claimed" and (cur < target and ast != "completed"):
-            print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> 未 completed，only_claim 跳过")
+            print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> not completed; skipped by only_claim")
             stats["pending"] += 1
             return
         if not opts.yes:
-            print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> only_claim dry-run 跳过")
+            print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> only_claim skipped in dry-run")
             stats["pending"] += 1
             return
         claim_one(auth, code, uid8, stats, opts.gap)
@@ -1281,7 +1281,7 @@ def process_task(auth, code, t, opts, stats):
 
     # 已领：跳过（除 only_claim 外不重复领）
     if ast == "claimed":
-        print(f"[task_runner] {uid8} {code}: query claimed({cur}/{target}) -> 已领，跳过")
+        print(f"[task_runner] {uid8} {code}: query claimed({cur}/{target}) -> already claimed; skipping")
         stats["already"] += 1
         return
 
@@ -1290,7 +1290,7 @@ def process_task(auth, code, t, opts, stats):
     # 已满足：走 claim
     if claimed_or_done:
         if not opts.yes:
-            print(f"[task_runner] {uid8} {code}: query completed({cur}/{target}) -> 可领(claim)，dry-run 跳过")
+            print(f"[task_runner] {uid8} {code}: query completed({cur}/{target}) -> claimable; skipped in dry-run")
             stats["pending"] += 1
             return
         claim_one(auth, code, uid8, stats, opts.gap)
@@ -1300,11 +1300,11 @@ def process_task(auth, code, t, opts, stats):
     if code == "black_cat":
         in_window = within_night_window()
         if not in_window:
-            print(f"[task_runner] {uid8} {code}: query in_progress({cur}/{target}) -> 非夜猫窗口(23-08 CST)，skip pending")
+            print(f"[task_runner] {uid8} {code}: query in_progress({cur}/{target}) -> outside night owl window (23-08 CST); skipping pending task")
             stats["pending"] += 1
             return
         if not opts.yes:
-            print(f"[task_runner] {uid8} {code}: query in_progress({cur}/{target}) -> 夜猫窗口内，可补 1 次，dry-run 跳过")
+            print(f"[task_runner] {uid8} {code}: query in_progress({cur}/{target}) -> inside night owl window; one extra action available; skipped in dry-run")
             stats["pending"] += 1
             return
         light_up(auth, code, spec, cur, target, uid8, opts, stats, cap=1)
@@ -1314,7 +1314,7 @@ def process_task(auth, code, t, opts, stats):
     need = max(0, target - cur)
     if need <= 0:
         if not opts.yes:
-            print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> 可领(claim)，dry-run 跳过")
+            print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> claimable; skipped in dry-run")
             stats["already"] += 1
             return
         claim_one(auth, code, uid8, stats, opts.gap)
@@ -1323,8 +1323,8 @@ def process_task(auth, code, t, opts, stats):
     if not opts.yes:
         ids = ids_for(spec["kind"], auth, need, offset=cur)
         shown = [i for i, _ in ids][:6]
-        print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> 可点亮 need={need} "
-              f"id源={spec['src']} ids={shown}，dry-run 跳过")
+        print(f"[task_runner] {uid8} {code}: query {ast}({cur}/{target}) -> can complete need={need} "
+              f"ID source={spec['src']} ids={shown}; skipped in dry-run")
         stats["pending"] += 1
         return
 
@@ -1351,8 +1351,8 @@ def _accept_with_verify(auth, code, uid8, gap) -> bool:
         t = tc.task_status(auth, code) or {}
         ast = t.get("accept_status") or "not_accepted"
         ok = (st == 200 and status == "accepted" and ast != "not_accepted")
-        print(f"[task_runner] {uid8} {code}: accept 尝试{attempt} {st} status={status} "
-              f"回读={ast}{' -> 生效' if ok else ''}")
+        print(f"[task_runner] {uid8} {code}: accept attempt {attempt} {st} status={status} "
+              f"readback={ast}{' -> confirmed' if ok else ''}")
         if ok:
             return True
         time.sleep(gap)
@@ -1365,7 +1365,7 @@ def light_up(auth, code, spec, cur, target, uid8, opts, stats, cap=0):
     ast = ast.get("accept_status") if ast else "not_accepted"
     if ast == "not_accepted":
         if not _accept_with_verify(auth, code, uid8, opts.gap):
-            print(f"[task_runner] {uid8} {code}: accept 未登记生效，本轮跳过待下次")
+            print(f"[task_runner] {uid8} {code}: accept not confirmed; skipping until next run")
             stats["fail"] += 1
             return
 
@@ -1377,13 +1377,13 @@ def light_up(auth, code, spec, cur, target, uid8, opts, stats, cap=0):
     if cap > 0:
         need = min(need, cap)
     if need <= 0:
-        print(f"[task_runner] {uid8} {code}: report 无需上报（{cur}/{tgt}）")
+        print(f"[task_runner] {uid8} {code}: report no report needed ({cur}/{tgt})")
     elif spec["kind"] == "buddyfirst":
         # 领养第一只 Buddy：report（前置解锁）→ agreement → buddy/first
         # （fork adoptBuddy。buddy/first 直接发积分 +300c+8e，任务状态随之 completed；
         #   门槛未达时服务端返回 HTTP 400 "first_buddy task not completed yet"，如实标注）。
         st_r, sc = tc.report_activity(auth, count=1, gap=opts.gap)[0]
-        print(f"[task_runner] {uid8} {code}: report {st_r} code={sc} 前置解锁")
+        print(f"[task_runner] {uid8} {code}: report {st_r} code={sc} prerequisite unlock")
         time.sleep(2.0)  # 服务端事件归账留时
         st_a, ag = tc.do_post(auth, tc.chat_base(auth), tc.PATH_BUDDY_AGREEMENT, {"agree": True})
         print(f"[task_runner] {uid8} {code}: buddy/agreement -> {st_a} code={(ag.get('code') if isinstance(ag, dict) else ag)}")
@@ -1429,7 +1429,7 @@ def light_up(auth, code, spec, cur, target, uid8, opts, stats, cap=0):
                           "isFirstPage": "0", "userId": auth["uid"]}
                 st2, sc2 = report_desktop_events(auth, [single])
                 print(f"[task_runner] {uid8} {code}: report {i + 1}/{need} {st_r} code={sc} "
-                      f"buddy5 失败 -> 降级单发 {st2} code={sc2}")
+                      f"buddy5 failed -> falling back to single event {st2} code={sc2}")
             else:
                 print(f"[task_runner] {uid8} {code}: report {i + 1}/{need} {st_r} code={sc} "
                       f"buddy5 id={buddy_id}")
@@ -1449,7 +1449,7 @@ def light_up(auth, code, spec, cur, target, uid8, opts, stats, cap=0):
     else:
         ids = ids_for(spec["kind"], auth, need, offset=cur)
         if not ids:
-            print(f"[task_runner] {uid8} {code}: report 无可用对象 id，skip")
+            print(f"[task_runner] {uid8} {code}: report no available object ID; skipping")
             stats["fail"] += 1
             return
         for i, (obj_id, m) in enumerate(ids):
@@ -1471,7 +1471,7 @@ def light_up(auth, code, spec, cur, target, uid8, opts, stats, cap=0):
         claim_one(auth, code, uid8, stats, opts.gap)
     elif ast2 != "claimed":
         # 未点亮：如实标注，不强行刷
-        print(f"[task_runner] {uid8} {code}: report 未达 target（{cur2}/{prog2.get('target', tgt)}），WARN 待下次")
+        print(f"[task_runner] {uid8} {code}: report target not reached ({cur2}/{prog2.get('target', tgt)}); WARN retry next run")
 
 
 # --------------------------------------------------------------------------
@@ -1491,7 +1491,7 @@ def process_account(auth, opts, stats):
     try:
         tasks = tc.list_tasks(auth)
     except Exception as e:
-        print(f"ERR: [task_runner] {uid8} query list_tasks 失败: {e}")
+        print(f"ERR: [task_runner] {uid8} query list_tasks failed: {e}")
         stats["fail"] += 1
         return
 
@@ -1521,18 +1521,18 @@ def process_account(auth, opts, stats):
             if c and c not in MAPPING:
                 ast = t.get("accept_status")
                 if ast == "claimed":
-                    print(f"[task_runner] {uid8} {c}: query claimed -> 已领，跳过(非映射任务)")
+                    print(f"[task_runner] {uid8} {c}: query claimed -> already claimed; skipping (unmapped task)")
                     stats["total"] += 1
                     stats["already"] += 1
                 else:
-                    print(f"[task_runner] {uid8} {c}: query {ast} -> 非映射任务，skip")
+                    print(f"[task_runner] {uid8} {c}: query {ast} -> unmapped task; skipping")
                     stats["total"] += 1
                     stats["skip"] += 1
 
     for code in codes:
         t = by_code.get(code)
         if t is None:
-            print(f"[task_runner] {uid8} {code}: query 任务不存在")
+            print(f"[task_runner] {uid8} {code}: query task does not exist")
             stats["total"] += 1
             stats["skip"] += 1
             continue
@@ -1553,11 +1553,11 @@ def process_account(auth, opts, stats):
                     ast = (t or {}).get("accept_status")
                     if opts.only_claim and ast not in ("completed", "claimed"):
                         # only_claim 只入账已完成任务；未完成不点亮
-                        print(f"[task_runner] {uid8} {mp_code}: only_claim 跳过（未 completed）")
+                        print(f"[task_runner] {uid8} {mp_code}: only_claim skipped (not completed)")
                     else:
                         process_minichat_task(auth, mp_code, opts, stats, uid8)
                 except Exception as e:
-                    print(f"[task_runner] {uid8} {mp_code}: mp 查询失败: {e}")
+                    print(f"[task_runner] {uid8} {mp_code}: mp query failed: {e}")
                     stats["fail"] += 1
 
     # school 段（小程序开学季）：growth 任务循环之后执行，判据/端点全复用 school 模块。
@@ -1578,14 +1578,14 @@ def print_summary(stats):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="成长任务一体机：查询→完成(点亮)→领取")
-    ap.add_argument("accounts", nargs="+", help="uid 前缀（可多个）或 ALL")
-    ap.add_argument("--yes", action="store_true", help="真实执行写操作（默认 dry-run）")
+    ap = argparse.ArgumentParser(description="Growth task runner: query, complete, and claim")
+    ap.add_argument("accounts", nargs="+", help="UID prefixes (one or more) or ALL")
+    ap.add_argument("--yes", action="store_true", help="Perform write operations (default: dry-run)")
     ap.add_argument("--only", action="append", default=None, dest="only_codes",
-                    help="只处理指定 task_code（可多次）")
+                    help="Process only this task_code (repeatable)")
     ap.add_argument("--only-claim", action="store_true",
-                    help="只领奖不点亮（已完成任务直接 claim，已领幂等）")
-    ap.add_argument("--gap", type=float, default=1.0, help="动作间隔秒数（默认 1.0）")
+                    help="Claim completed tasks only; already claimed tasks are idempotent")
+    ap.add_argument("--gap", type=float, default=1.0, help="Seconds between actions (default: 1.0)")
     tc.add_account_spacing_arguments(ap)
     a = ap.parse_args()
     account_spacing = tc.account_spacing_from_args(a, ap)
@@ -1614,7 +1614,7 @@ def main():
     print(f"mode={mode} accounts={prefixes2} only={a.only_codes or 'all'} "
           f"only_claim={a.only_claim} gap={a.gap}")
     if a.yes and len(prefixes2) > 2 and not a.only_codes and not a.only_claim:
-        print("WARN: 全量批量 + --yes 未限定 --only，注意 54 号批量——请确认 Hermes 决策后再跑")
+        print("WARN: --yes with no --only applies to all selected accounts; confirm the intended batch before proceeding")
 
     for p in prefixes2:
         try:
@@ -1626,7 +1626,7 @@ def main():
         # global realm 不适用 CN 任务中心：明确跳过、不发起任何请求（P2 门控结论）。
         if tc.auth_is_global(c):
             uid8 = (c.get("uid") or "")[:8] or "?"
-            print(f"[skip] {uid8} global realm 不适用 CN 任务")
+            print(f"[skip] {uid8} Global realm does not support CN tasks")
             stats["skip"] += 1
             continue
         account_spacing.wait()

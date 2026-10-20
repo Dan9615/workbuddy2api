@@ -401,7 +401,7 @@ func (c *Config) normalize() error {
 	// 校验放 applyEnv 之后：env 覆盖（WB2A_ADMIN_ENABLED / WB2A_API_KEY）与 config
 	// 两条入口最终状态一致拦截。
 	if c.Admin.Enabled && strings.TrimSpace(c.APIKey) == "" {
-		return fmt.Errorf("admin.enabled=true 但 api_key 为空：请设置 api_key 或将 admin.enabled 置 false")
+		return fmt.Errorf("admin.enabled=true requires an api_key: set api_key or disable admin.enabled")
 	}
 	// 排程段归一（空数组回落默认、ActivityReportCount 归一、小时范围校验）
 	// 由 internal/config 统一实现，cmd/server 与 cmd/activity 共用同一份语义。
@@ -426,7 +426,7 @@ func (c *Config) normalizePrompt() error {
 	case "append":
 		c.Prompt.Mode = "append"
 	default:
-		return fmt.Errorf("prompt.mode: %q 不是合法值（custom / append / passthrough）", c.Prompt.Mode)
+		return fmt.Errorf("prompt.mode: %q is invalid (use custom / append / passthrough)", c.Prompt.Mode)
 	}
 	if c.Prompt.Mode == "custom" || c.Prompt.Mode == "append" {
 		text, err := prompt.Load(c.Prompt.Mode, c.Prompt.File)

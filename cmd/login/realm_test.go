@@ -82,14 +82,14 @@ func TestResolveRealmInput(t *testing.T) {
 
 // TestPromptRealm 覆盖 promptRealm 的 I/O 行为（out 将接 os.Stderr，stdout 只出 realm）：
 //
-//	1 / 2 / 回车默认 → 分别输出来 cn / global / cn；均打印"选择登录版本"提示；
+//	1 / 2 / 回车默认 → 分别输出来 cn / global / cn；均打印"Select login realm"提示；
 //	非法输入 → 警告并回落 cn；EOF（非交互直接管道）→ 回落 cn。
 func TestPromptRealm(t *testing.T) {
 	cases := []struct {
 		name     string
 		input    string
 		want     string
-		wantHint bool // 输出中出现"选择登录版本"提示
+		wantHint bool // 输出中出现"Select login realm"提示
 	}{
 		{name: "选 cn", input: "1\n", want: "cn", wantHint: true},
 		{name: "选 global", input: "2\n", want: "global", wantHint: true},
@@ -104,8 +104,8 @@ func TestPromptRealm(t *testing.T) {
 			if got != c.want {
 				t.Errorf("promptRealm(%q)=%q want %q", c.input, got, c.want)
 			}
-			if c.wantHint && !strings.Contains(out.String(), "选择登录版本") {
-				t.Errorf("prompt should contain '选择登录版本', got %q", out.String())
+			if c.wantHint && !strings.Contains(out.String(), "Select login realm") {
+				t.Errorf("prompt should contain 'Select login realm', got %q", out.String())
 			}
 		})
 	}

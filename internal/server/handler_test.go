@@ -883,7 +883,7 @@ func TestChatHardCreditCooldownUntilNextDay4AM(t *testing.T) {
 	if !ok || !st.Cooling {
 		t.Fatalf("bad should be cooling: %+v ok=%v", st, ok)
 	}
-	if st.Reason != "余额不足" {
+	if st.Reason != "insufficient credits" {
 		t.Errorf("reason=%q", st.Reason)
 	}
 	// 硬信贷冷却必须是次日 04:00，而不是固定 12h/配置时长。
@@ -924,7 +924,7 @@ func TestChat429Code14018UsesHardCreditCooldown(t *testing.T) {
 	if !ok || !st.Cooling {
 		t.Fatalf("14018 account should be cooling: %+v ok=%v", st, ok)
 	}
-	if st.Reason != "余额不足" || st.Until.Hour() != 4 {
+	if st.Reason != "insufficient credits" || st.Until.Hour() != 4 {
 		t.Fatalf("14018 should use hard-credit cooldown, got reason=%q until=%v", st.Reason, st.Until)
 	}
 	if got := p.Pick(""); got == nil || got.UID != "good" {

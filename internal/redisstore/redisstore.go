@@ -56,14 +56,14 @@ const (
 //   - Ping 失败 → Noop + 启动警告（硬性降级要求：不因 Redis 不可用而失败）
 func New(url, token string) Store {
 	if url == "" {
-		log.Printf("[redisstore] upstash 未配置，进入纯内存模式（Noop 降级）")
+		log.Printf("[redisstore] Upstash not configured; using in-memory mode (Noop fallback)")
 		return Noop{}
 	}
 
 	full := normalizeURL(url, token)
 	opt, err := redis.ParseURL(full)
 	if err != nil {
-		log.Printf("[redisstore] 警告: redis 连接串解析失败 (%v)，降级 Noop", err)
+		log.Printf("[redisstore] WARN: cannot parse Redis connection string (%v); using Noop fallback", err)
 		return Noop{}
 	}
 	opt.ReadTimeout = readTimeout
@@ -73,11 +73,11 @@ func New(url, token string) Store {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
-		log.Printf("[redisstore] 警告: upstash 连接失败 (%v)，降级 Noop（纯内存模式）", err)
+		log.Printf("[redisstore] WARN: cannot connect to Upstash (%v); using Noop fallback (in-memory mode)", err)
 		_ = client.Close()
 		return Noop{}
 	}
-	log.Printf("[redisstore] upstash 已连接 (addr=%s)", opt.Addr)
+	log.Printf("[redisstore] connected to Upstash (addr=%s)", opt.Addr)
 	return &Upstash{
 		client: client,
 		sem:    make(chan struct{}, writeConcurrencyLimit),
@@ -179,7 +179,7 @@ func (u *Upstash) Close() error {
 	case <-done:
 	case <-time.After(10 * time.Second):
 		// 兜底超时（单写上限 5s，10s 富余）：卡死的写不应阻塞进程退出。
-		log.Printf("[redisstore] WARN: Close 等待在途写超时，放弃（镜像可能未写完）")
+		log.Printf("[redisstore] WARN: Close timed out waiting for in-flight writes (snapshots may be incomplete)")
 	}
 	return u.closeClient()
 }
