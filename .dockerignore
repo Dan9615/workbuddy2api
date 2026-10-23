@@ -1,0 +1,8 @@
+# Runtime state, credentials and VCS metadata must never enter the build context
+.git/
+auths/
+data/
+backups/
+config.json
+*.pid
+*.log
